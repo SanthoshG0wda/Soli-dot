@@ -35,7 +35,20 @@ function masterKey(): Buffer {
     if (!fs.existsSync(file)) fs.writeFileSync(file, crypto.randomBytes(32).toString("hex"), { mode: 0o600 });
     hex = fs.readFileSync(file, "utf8").trim();
   }
-  g.__dotsVaultKey = Buffer.from(hex, "hex");
+  const key = Buffer.from(hex, "hex");
+  if (key.length !== 32) {
+    // Corrupt/truncated key file or Keychain entry: rotate to a fresh key
+    // (old secrets become unreadable, which unseal() reports per-row).
+    const fresh = crypto.randomBytes(32);
+    if (process.platform !== "darwin") {
+      try {
+        fs.writeFileSync(path.join(DATA_DIR, "vault.key"), fresh.toString("hex"), { mode: 0o600 });
+      } catch {}
+    }
+    g.__dotsVaultKey = fresh;
+    return fresh;
+  }
+  g.__dotsVaultKey = key;
   return g.__dotsVaultKey;
 }
 
@@ -48,10 +61,21 @@ export function seal(plain: string): string {
 }
 
 export function unseal(sealed: string): string {
-  const [iv, tag, data] = sealed.split(".").map((s) => Buffer.from(s, "base64"));
+  const parts = sealed.split(".");
+  if (parts.length !== 3) throw new Error("Invalid sealed value.");
+  const [iv, tag, data] = parts.map((s) => Buffer.from(s, "base64"));
+  if (iv.length !== 12 || tag.length !== 16 || data.length === 0) throw new Error("Invalid sealed value.");
   const decipher = crypto.createDecipheriv("aes-256-gcm", masterKey(), iv);
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(data), decipher.final()]).toString("utf8");
+}
+
+export function tryUnseal(sealed: string): string | null {
+  try {
+    return unseal(sealed);
+  } catch {
+    return null;
+  }
 }
 
 export function savePassword(site: string, username: string, password: string) {
@@ -60,5 +84,10 @@ export function savePassword(site: string, username: string, password: string) {
 
 export function credentialFor(site: string): { site: string; username: string; password: string } | null {
   const row = sealedPasswordFor(site);
-  return row ? { site: row.site, username: row.username, password: unseal(row.sealed) } : null;
+  if (!row) return null;
+  try {
+    return { site: row.site, username: row.username, password: unseal(row.sealed) };
+  } catch {
+    return null;
+  }
 }

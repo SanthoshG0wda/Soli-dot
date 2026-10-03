@@ -2,7 +2,8 @@ import "server-only";
 import type {
   ResponseComputerToolCall, ResponseFunctionToolCall, ResponseInputContent, ResponseInputItem, Response, Tool,
 } from "openai/resources/responses/responses";
-import { clientFor, isReasoningModel, modelFor, supportsComputerTool } from "./client";
+import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
+import { clientFor, isReasoningModel, modelFor, statelessSearchTool, supportsComputerTool } from "./client";
 import { systemPrompt, type Trigger } from "./prompt";
 import { COMPUTER_ENABLED, findTool, setConsult, toolsForDot, type ToolCtx } from "./tools";
 import { review } from "./review";
@@ -294,17 +295,31 @@ async function drive(dot: Dot, prevId: string | null, input: ResponseInputItem[]
 /** Stream one model response, mirroring text into the transcript as it arrives. */
 async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem[], trigger: Trigger, signal: AbortSignal): Promise<Response> {
   const appModel = await modelFor(dot.model);
-  const { client, model, stateless } = clientFor(appModel);
+  const { client, model, stateless, useCompletionsAPI } = clientFor(appModel);
+  const searchTool = stateless ? statelessSearchTool(appModel) : "openai";
   const tools: Tool[] = [
     ...toolsForDot(dot).map((t): Tool => ({ type: "function", name: t.name, description: t.description, parameters: t.parameters, strict: !stateless && t.strict !== false })),
     // OpenRouter's server-side search: the model decides when to search, same as OpenAI's web_search.
-    stateless ? ({ type: "openrouter:web_search" } as unknown as Tool) : { type: "web_search" },
+    // NIM has no server-side search, so those models browse via open_url/read_page instead.
+    ...(searchTool === "openrouter"
+      ? [{ type: "openrouter:web_search" } as unknown as Tool]
+      : searchTool === "openai"
+        ? [{ type: "web_search" } as Tool]
+        : []),
   ];
   if (!stateless && COMPUTER_ENABLED && supportsComputerTool(model)) tools.push({ type: "computer" } as Tool);
 
   // Stateless providers get the whole conversation every time; the app keeps it (trimmed) per chat.
   const history = stateless ? (repo.getHistory(dot.id) as ResponseInputItem[]) : [];
   repo.setActivity(dot.id, "Thinking");
+
+  // NVIDIA NIM only supports /v1/chat/completions, not /v1/responses.
+  if (useCompletionsAPI) {
+    const final = await respondViaCompletions(client, model, systemPrompt(dot, trigger), [...history, ...input], tools, dot, signal);
+    if (stateless) repo.setHistory(dot.id, trimHistory([...history, ...input, ...replayable(final.output)]));
+    return final;
+  }
+
   const stream = await client.responses.create(
     stateless
       ? { model, instructions: systemPrompt(dot, trigger), input: [...history, ...input], tools, parallel_tool_calls: false, store: false, stream: true }
@@ -368,6 +383,150 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
   if (!final) throw new Error("The model stream ended unexpectedly");
   if (stateless) repo.setHistory(dot.id, trimHistory([...history, ...input, ...replayable(final.output)]));
   return final;
+}
+
+/**
+ * Convert ResponseInputItem[] (Responses API format) to ChatCompletionMessageParam[] for
+ * providers that only support /v1/chat/completions (e.g. NVIDIA NIM).
+ */
+function toChatMessages(systemInstruction: string, items: ResponseInputItem[]): ChatCompletionMessageParam[] {
+  const out: ChatCompletionMessageParam[] = [{ role: "system", content: systemInstruction }];
+  for (const item of items) {
+    if ("role" in item) {
+      if (item.role === "user") {
+        const content = typeof item.content === "string" ? item.content : Array.isArray(item.content)
+          ? (item.content as ResponseInputContent[]).map((c) => ("text" in c ? c.text : "")).join("")
+          : "";
+        out.push({ role: "user", content });
+      } else if (item.role === "assistant") {
+        out.push({ role: "assistant", content: typeof item.content === "string" ? item.content : "" });
+      } else if (item.role === "system") {
+        out.push({ role: "system", content: typeof item.content === "string" ? item.content : "" });
+      }
+    } else if (item.type === "function_call") {
+      // Tool call made by the model
+      out.push({
+        role: "assistant",
+        content: null,
+        tool_calls: [{ id: item.call_id, type: "function", function: { name: item.name, arguments: item.arguments } }],
+      });
+    } else if (item.type === "function_call_output") {
+      out.push({ role: "tool", tool_call_id: item.call_id, content: String(item.output) });
+    }
+  }
+  return out;
+}
+
+/** Convert Responses API Tool[] to ChatCompletionTool[] (drops provider-specific tools like web_search). */
+function toChatTools(tools: Tool[]): ChatCompletionTool[] {
+  return tools
+    .filter((t) => t.type === "function")
+    .map((t) => ({
+      type: "function" as const,
+      function: {
+        name: (t as { name: string }).name,
+        description: (t as { description?: string }).description,
+        parameters: (t as { parameters?: object }).parameters,
+        strict: (t as { strict?: boolean }).strict,
+      },
+    }));
+}
+
+/**
+ * Stream a response from a chat-completions-only provider (e.g. NVIDIA NIM) and return a
+ * synthetic Response object compatible with the rest of the runtime.
+ */
+async function respondViaCompletions(
+  client: import("openai").default,
+  model: string,
+  systemInstruction: string,
+  items: ResponseInputItem[],
+  tools: Tool[],
+  dot: Dot,
+  signal: AbortSignal,
+): Promise<Response> {
+  const messages = toChatMessages(systemInstruction, items);
+  const chatTools = toChatTools(tools);
+  const stream = await client.chat.completions.create(
+    {
+      model,
+      messages,
+      ...(chatTools.length ? { tools: chatTools, parallel_tool_calls: false } : {}),
+      stream: true,
+    },
+    { signal },
+  );
+
+  let text = "";
+  let msgRepoId: string | null = null;
+  const toolCallAccumulators: Record<number, { id: string; name: string; arguments: string }> = {};
+
+  repo.setActivity(dot.id, "Writing");
+
+  try {
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta;
+      if (!delta) continue;
+
+      // Stream text content
+      if (delta.content) {
+        if (!msgRepoId) {
+          const m = repo.addMessage({ dotId: dot.id, role: "dot", text: "" });
+          msgRepoId = m.id;
+        }
+        text += delta.content;
+        emit({ type: "message_delta", id: msgRepoId, dotId: dot.id, delta: delta.content });
+      }
+
+      // Accumulate tool call deltas
+      if (delta.tool_calls) {
+        for (const tc of delta.tool_calls) {
+          const idx = tc.index ?? 0;
+          if (!toolCallAccumulators[idx]) {
+            toolCallAccumulators[idx] = { id: tc.id ?? "", name: tc.function?.name ?? "", arguments: "" };
+          }
+          if (tc.id) toolCallAccumulators[idx].id = tc.id;
+          if (tc.function?.name) toolCallAccumulators[idx].name += tc.function.name;
+          if (tc.function?.arguments) toolCallAccumulators[idx].arguments += tc.function.arguments;
+        }
+      }
+    }
+  } finally {
+    if (msgRepoId) repo.updateMessage(msgRepoId, { text: text || "…" });
+  }
+
+  // Build a synthetic Response object the rest of the runtime can consume.
+  const output: Response["output"] = [];
+  const syntheticId = `chatcmpl-nim-${Date.now()}`;
+
+  if (text) {
+    output.push({
+      type: "message",
+      id: syntheticId,
+      role: "assistant",
+      status: "completed",
+      content: [{ type: "output_text", text, annotations: [] }],
+    } as unknown as Response["output"][number]);
+  }
+
+  for (const acc of Object.values(toolCallAccumulators)) {
+    output.push({
+      type: "function_call",
+      id: `fc-${acc.id}`,
+      call_id: acc.id,
+      name: acc.name,
+      arguments: acc.arguments,
+      status: "completed",
+    } as unknown as Response["output"][number]);
+  }
+
+  return {
+    id: syntheticId,
+    output,
+    output_text: text,
+    status: "completed",
+    model,
+  } as unknown as Response;
 }
 
 /** The parts of a response worth sending back next turn: what the model said and the tools it called. */
@@ -540,17 +699,25 @@ setConsult(async (target, message, from, _depth, signal) => {
   if (!channelId) repo.addMessage({ dotId: target.id, role: "user", text: message, from: `dot:${from.name}` });
   repo.setActivity(target.id, `Helping ${from.name}`);
   try {
-    const { client, model, stateless } = clientFor(await modelFor(target.model));
-    const res = await client.responses.create(
-      {
-        model,
-        instructions: systemPrompt(target, { kind: "dot", from: from.name }),
-        input: [...rebuildContext(target.id, message).slice(-12), { role: "user", content: `${from.name} asks: ${message}` }],
-        tools: [stateless ? ({ type: "openrouter:web_search" } as unknown as Tool) : { type: "web_search" }],
-        ...(stateless ? { store: false } : isReasoningModel(model) ? { reasoning: { effort: "low" as const } } : {}),
-      },
-      { signal },
-    );
+    const { client, model, stateless, useCompletionsAPI } = clientFor(await modelFor(target.model));
+    const consultInput: ResponseInputItem[] = [
+      ...rebuildContext(target.id, message).slice(-12),
+      { role: "user", content: `${from.name} asks: ${message}` },
+    ];
+    const consultTools: Tool[] = stateless ? [] : [{ type: "web_search" } as Tool];
+    // NIM doesn't support /v1/responses — fall back to chat completions.
+    const res = useCompletionsAPI
+      ? await respondViaCompletions(client, model, systemPrompt(target, { kind: "dot", from: from.name }), consultInput, consultTools, target, signal)
+      : await client.responses.create(
+          {
+            model,
+            instructions: systemPrompt(target, { kind: "dot", from: from.name }),
+            input: consultInput,
+            tools: [stateless ? ({ type: "openrouter:web_search" } as unknown as Tool) : { type: "web_search" }],
+            ...(stateless ? { store: false } : isReasoningModel(model) ? { reasoning: { effort: "low" as const } } : {}),
+          },
+          { signal },
+        );
     const reply = res.output_text || "(no reply)";
     // In a channel the member answers in the channel (the user sees the team at work); otherwise in its own chat.
     repo.addMessage({ dotId: target.id, role: "dot", text: reply, from: `dot:${from.name}`, channelId });
@@ -595,7 +762,12 @@ function savePending(dotId: string, pending: Pending) {
 }
 
 function parsePending(raw: string | null): Pending | null {
-  return raw ? (JSON.parse(raw) as Pending) : null;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as Pending;
+  } catch {
+    return null;
+  }
 }
 
 function safeParse(raw: string): Record<string, unknown> {

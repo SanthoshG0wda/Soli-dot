@@ -1,6 +1,7 @@
 import "server-only";
 import { db, getSetting, id, setSetting } from "./db";
 import { emit } from "./bus";
+import { safeParse } from "./validate";
 import { Cron } from "croner";
 import { normalizeLook } from "@/lib/look";
 import type {
@@ -17,7 +18,7 @@ const toDot = (r: Row): Dot => ({
   name: r.name as string,
   purpose: r.purpose as string,
   instructions: r.instructions as string,
-  look: normalizeLook(JSON.parse(r.look as string)),
+  look: normalizeLook(safeParse<Partial<Record<keyof Look, unknown>> | null>(r.look as string, null)),
   status: r.status as DotStatus,
   activity: activity.get(r.id as string) ?? null,
   localAccess: r.local_access === 1,
@@ -101,8 +102,15 @@ export function setActivity(dotId: string, label: string | null) {
 
 export function deleteDot(dotId: string) {
   const d = db();
-  for (const t of ["messages", "memories", "skills", "routines", "triggers", "rules", "conversations"]) d.prepare(`DELETE FROM ${t} WHERE dot_id = ?`).run(dotId);
-  d.prepare("DELETE FROM dots WHERE id = ?").run(dotId);
+  try {
+    d.exec("BEGIN");
+    for (const t of ["messages", "memories", "skills", "routines", "triggers", "rules", "conversations"]) d.prepare(`DELETE FROM ${t} WHERE dot_id = ?`).run(dotId);
+    d.prepare("DELETE FROM dots WHERE id = ?").run(dotId);
+    d.exec("COMMIT");
+  } catch {
+    try { d.exec("ROLLBACK"); } catch {}
+    throw new Error("Couldn't delete the dot.");
+  }
   emit({ type: "dot_deleted", id: dotId });
 }
 
@@ -160,8 +168,16 @@ function touchConversation(convId: string) {
 }
 
 export function deleteConversation(convId: string) {
-  db().prepare("DELETE FROM messages WHERE conversation_id = ?").run(convId);
-  db().prepare("DELETE FROM conversations WHERE id = ?").run(convId);
+  const d = db();
+  try {
+    d.exec("BEGIN");
+    d.prepare("DELETE FROM messages WHERE conversation_id = ?").run(convId);
+    d.prepare("DELETE FROM conversations WHERE id = ?").run(convId);
+    d.exec("COMMIT");
+  } catch {
+    try { d.exec("ROLLBACK"); } catch {}
+    throw new Error("Couldn't delete the conversation.");
+  }
   emit({ type: "conversation_deleted", id: convId });
 }
 
@@ -245,9 +261,9 @@ const toMessage = (r: Row): Message => ({
   role: r.role as MessageRole,
   text: r.text as string,
   title: (r.title as string) ?? null,
-  card: r.card ? (JSON.parse(r.card as string) as CardData) : null,
+  card: r.card ? safeParse<CardData | null>(r.card as string, null) : null,
   from: (r.source as string) ?? null,
-  attachments: r.attachments ? (JSON.parse(r.attachments as string) as Attachment[]) : null,
+  attachments: r.attachments ? safeParse<Attachment[] | null>(r.attachments as string, null) : null,
   channelId: (r.channel_id as string) ?? null,
   conversationId: (r.conversation_id as string) ?? null,
   createdAt: r.created_at as number,
@@ -318,7 +334,7 @@ export function pendingCards(dotId: string): Message[] {
 // ---------- channels ----------
 
 const toChannel = (r: Row): Channel => ({
-  id: r.id as string, name: r.name as string, leadId: r.lead_id as string, memberIds: JSON.parse(r.members as string) as string[], createdAt: r.created_at as number,
+  id: r.id as string, name: r.name as string, leadId: r.lead_id as string, memberIds: safeParse<string[]>(r.members as string, []), createdAt: r.created_at as number,
 });
 
 export function listChannels(): Channel[] {
@@ -340,8 +356,16 @@ export function createChannel(name: string, leadId: string, memberIds: string[])
 }
 
 export function deleteChannel(channelId: string) {
-  db().prepare("DELETE FROM messages WHERE channel_id = ?").run(channelId);
-  db().prepare("DELETE FROM channels WHERE id = ?").run(channelId);
+  const d = db();
+  try {
+    d.exec("BEGIN");
+    d.prepare("DELETE FROM messages WHERE channel_id = ?").run(channelId);
+    d.prepare("DELETE FROM channels WHERE id = ?").run(channelId);
+    d.exec("COMMIT");
+  } catch {
+    try { d.exec("ROLLBACK"); } catch {}
+    throw new Error("Couldn't delete the channel.");
+  }
   emit({ type: "channel_deleted", id: channelId });
 }
 
@@ -493,7 +517,7 @@ export function deleteRoutine(routineId: string) {
 
 const toTrigger = (r: Row): AppTrigger => ({
   id: r.id as string, dotId: r.dot_id as string, composioId: r.composio_id as string, slug: r.slug as string,
-  toolkit: r.toolkit as string, name: r.name as string, config: JSON.parse(r.config as string) as Record<string, unknown>,
+  toolkit: r.toolkit as string, name: r.name as string, config: safeParse<Record<string, unknown>>(r.config as string, {}),
   instruction: r.instruction as string, enabled: r.enabled === 1, createdAt: r.created_at as number,
   lastFiredAt: (r.last_fired_at as number) ?? null, lastError: (r.last_error as string) ?? null,
 });

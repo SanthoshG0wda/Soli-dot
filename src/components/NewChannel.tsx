@@ -31,7 +31,7 @@ export default function NewChannel() {
           <span className="eyebrow mb-1.5 block">Name</span>
           <div className="relative">
             <span className="absolute top-1/2 left-3 -translate-y-1/2 font-mono text-[13px] text-foreground/40">#</span>
-            <input className="field pl-6" placeholder="launch-plan" value={name} onChange={(e) => setName(e.target.value.replace(/\s+/g, "-").toLowerCase())} />
+            <input className="field pl-6" aria-label="launch-plan" placeholder="launch-plan" value={name} onChange={(e) => setName(e.target.value.replace(/\s+/g, "-").toLowerCase())} />
           </div>
         </label>
 

@@ -130,15 +130,22 @@ async function ensureClient(): Promise<Client> {
 /** Start sign-in. Returns the Composio authorization URL, or null if already signed in. */
 export async function signIn(): Promise<string | null> {
   if (st.client) return null;
+  if (st.pending) throw new Error("A sign-in is already in progress. Finish it before starting another.");
   const r = await connect();
   return r?.url ?? null;
 }
 
 /** OAuth redirect lands here with the code. */
 export async function finishSignIn(code: string) {
+  if (!code || typeof code !== "string" || code.length > 2048) throw new Error("Invalid sign-in code.");
   if (!st.pending) throw new Error("No sign-in in progress.");
-  await st.pending.finishAuth(code);
+  const pending = st.pending;
   st.pending = null;
+  try {
+    await pending.finishAuth(code);
+  } catch {
+    throw new Error("Composio sign-in didn't complete. Try again.");
+  }
   const r = await connect();
   if (r) throw new Error("Composio sign-in didn't complete. Try again.");
 }

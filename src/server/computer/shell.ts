@@ -3,6 +3,7 @@ import { execFile, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { DATA_DIR } from "../db";
+import { assertDotId } from "../validate";
 
 export const BOX_IMAGE = process.env.DOTS_BOX_IMAGE || "node:22-bookworm";
 const MAX_OUTPUT = 12_000;
@@ -17,6 +18,7 @@ export function dockerAvailable(): boolean {
 }
 
 export function workspaceDir(dotId: string): string {
+  assertDotId(dotId);
   const dir = path.join(DATA_DIR, "dots", dotId, "workspace");
   fs.mkdirSync(dir, { recursive: true });
   return dir;
@@ -69,7 +71,7 @@ export function resolveWorkspacePath(dotId: string, p: string): string {
   const root = workspaceDir(dotId);
   const rel = p.replace(/^\/?workspace\/?/, "");
   const full = path.resolve(root, rel);
-  if (!full.startsWith(root)) throw new Error("Path must stay inside /workspace");
+  if (full !== root && !full.startsWith(root + path.sep)) throw new Error("Path must stay inside /workspace");
   return full;
 }
 

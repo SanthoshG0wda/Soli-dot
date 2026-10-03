@@ -101,7 +101,7 @@ export default function AppsDirectory({ apps }: { apps: CatalogApp[] }) {
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-foreground/35" strokeWidth={1.75} />
           <input
             className="field pl-9"
-            placeholder={`Search ${fmt(apps.length)} apps`}
+            aria-label="Search fmt(apps.length)" placeholder={`Search ${fmt(apps.length)} apps`}
             value={query}
             onChange={(e) => (setQuery(e.target.value), reset())}
           />
@@ -388,7 +388,7 @@ function DetailBody({ slug }: { slug: string }) {
         <div className="mb-2 flex items-center justify-between">
           <h3 className="eyebrow">Tools · {fmt(d.tools.length)}</h3>
         </div>
-        {d.tools.length > 8 && <input className="field mb-2 h-8" placeholder="Filter tools" value={q} onChange={(e) => setQ(e.target.value)} />}
+        {d.tools.length > 8 && <input className="field mb-2 h-8" aria-label="Filter tools" placeholder="Filter tools" value={q} onChange={(e) => setQ(e.target.value)} />}
         <div className="divide-y divide-black/[0.06] rounded-lg border border-black/[0.06]">
           {tools.slice(0, 200).map((t) => (
             <div key={t.slug} className="px-3 py-2">

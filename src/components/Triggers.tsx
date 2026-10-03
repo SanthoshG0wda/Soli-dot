@@ -22,7 +22,7 @@ export function TriggersKey() {
     start(async () => {
       const err = await actions.setComposioKey(value);
       setError(err);
-      if (!err) (setKey(""), setEditing(false));
+      if (!err) { setKey(""); setEditing(false); }
     });
 
   return (
@@ -59,7 +59,7 @@ export function TriggersKey() {
             save(key);
           }}
         >
-          <input className="field font-mono text-[13px]" type="password" placeholder="ak_..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
+          <input className="field font-mono text-[13px]" type="password" aria-label="ak_..." placeholder="ak_..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
           <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
             {pending ? "Checking…" : "Save"}
           </button>
@@ -352,7 +352,7 @@ function Field({ field, value, onChange }: { field: TriggerField; value: string 
         <input
           className="field"
           inputMode={field.type === "integer" || field.type === "number" ? "numeric" : undefined}
-          placeholder={field.type.startsWith("array:") ? "Comma-separated" : field.description.slice(0, 60)}
+          aria-label="field.type.startsWith(" placeholder={field.type.startsWith("array:") ? "Comma-separated" : field.description.slice(0, 60)}
           value={String(value ?? "")}
           onChange={(e) => onChange(e.target.value)}
         />

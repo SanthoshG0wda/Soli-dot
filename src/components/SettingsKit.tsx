@@ -84,7 +84,7 @@ export function RuleEditor({ dotId, name }: { dotId: string | null; name: string
       >
         <label className="block">
           <span className="eyebrow mb-1.5 block">When {name} wants to</span>
-          <input className="field" placeholder="reply to emails for me" value={action} onChange={(e) => setAction(e.target.value)} />
+          <input className="field" aria-label="reply to emails for me" placeholder="reply to emails for me" value={action} onChange={(e) => setAction(e.target.value)} />
         </label>
         <div>
           <span className="eyebrow mb-1.5 block">It should</span>

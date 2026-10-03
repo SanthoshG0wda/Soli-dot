@@ -10,6 +10,8 @@ import type { Attachment } from "@/lib/types";
 
 const DIR = path.join(DATA_DIR, "files");
 export const MAX_UPLOAD = 25 * 1024 * 1024;
+// Total storage across all uploads; prevents unbounded disk fill from the upload route.
+const MAX_TOTAL_BYTES = 2 * 1024 * 1024 * 1024;
 
 type Row = { id: string; dot_id: string; name: string; mime: string; size: number; source: string; box_path: string | null; created_at: number };
 
@@ -41,6 +43,9 @@ function save(dotId: string, name: string, mime: string, data: Buffer, source: "
 /** The user attached a file: store it and put a copy in the dot's workspace under uploads/. */
 export async function upload(dotId: string, name: string, mime: string, data: Buffer): Promise<Attachment & { boxPath: string }> {
   const clean = safeName(name);
+  if (data.length > MAX_UPLOAD) throw new Error("That file is too large (over 25 MB).");
+  const total = (db().prepare("SELECT COALESCE(SUM(size), 0) AS n FROM files").get() as { n: number }).n;
+  if (total + data.length > MAX_TOTAL_BYTES) throw new Error("File storage is full (2 GB limit). Delete old files first.");
   const boxPath = await computer.writeFile(dotId, `uploads/${clean}`, data);
   return { ...save(dotId, clean, mime || guessMime(clean), data, "user", boxPath), boxPath };
 }

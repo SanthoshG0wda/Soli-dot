@@ -127,8 +127,8 @@ export default function SetupPane({ dot }: { dot: Dot }) {
               }}
             >
               <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
-                <input className="field" placeholder="Name" value={routine.name} onChange={(e) => setRoutine({ ...routine, name: e.target.value })} />
-                <input className="field" placeholder="What to do each time" value={routine.instruction} onChange={(e) => setRoutine({ ...routine, instruction: e.target.value })} />
+                <input className="field" aria-label="Name" placeholder="Name" value={routine.name} onChange={(e) => setRoutine({ ...routine, name: e.target.value })} />
+                <input className="field" aria-label="What to do each time" placeholder="What to do each time" value={routine.instruction} onChange={(e) => setRoutine({ ...routine, instruction: e.target.value })} />
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 {SCHEDULES.map((s) => (
@@ -177,7 +177,7 @@ export default function SetupPane({ dot }: { dot: Dot }) {
                 setMemory("");
               }}
             >
-              <input className="field" placeholder="Add something it should remember" value={memory} onChange={(e) => setMemory(e.target.value)} />
+              <input className="field" aria-label="Add something it should remember" placeholder="Add something it should remember" value={memory} onChange={(e) => setMemory(e.target.value)} />
               <button className="btn-secondary shrink-0" disabled={!memory.trim()}>
                 Add
               </button>

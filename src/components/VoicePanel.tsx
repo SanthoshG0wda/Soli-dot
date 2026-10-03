@@ -43,7 +43,7 @@ export default function VoicePanel() {
         )}
       </div>
 
-      <div className="max-h-44 min-h-16 space-y-1.5 overflow-y-auto px-4 py-3">
+      <div className="max-h-44 min-h-16 space-y-1.5 overflow-y-auto px-4 py-3" role="log" aria-live="polite" aria-label="Call updates">
         {call.error && <p className="text-body-sm text-destructive">{call.error}</p>}
         {!call.error && !lines.length && (
           <p className="text-body-sm text-foreground/45">

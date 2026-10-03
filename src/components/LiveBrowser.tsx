@@ -112,6 +112,7 @@ export default function LiveBrowser({ dotId, interactive, nonce }: { dotId: stri
               onBlur={() => setDraft(null)}
               onChange={(e) => setDraft(e.target.value)}
               placeholder="Search or enter address"
+              aria-label="Browser address bar"
               spellCheck={false}
             />
           </form>
@@ -161,7 +162,7 @@ export default function LiveBrowser({ dotId, interactive, nonce }: { dotId: stri
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`/api/dots/${dotId}/stream?n=${nonce}`} alt="" draggable={false} className="h-full w-full select-none" />
+        <img src={`/api/dots/${dotId}/stream?n=${nonce}`} alt="Live view of the dot's browser" role="img" draggable={false} className="h-full w-full select-none" />
       </div>
     </div>
   );

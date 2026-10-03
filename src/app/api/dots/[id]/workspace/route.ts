@@ -1,10 +1,12 @@
 import path from "node:path";
 import { listFiles, readFile } from "@/server/computer";
 import { guessMime } from "@/server/files";
+import { isDotId } from "@/server/validate";
 
 // The dot's workspace: GET lists files; GET ?path=… downloads one.
 export async function GET(req: Request, ctx: RouteContext<"/api/dots/[id]/workspace">) {
   const { id } = await ctx.params;
+  if (!isDotId(id)) return Response.json({ files: [], error: "Invalid dot id." }, { status: 400 });
   const p = new URL(req.url).searchParams.get("path");
   try {
     if (!p) return Response.json({ files: await listFiles(id) });

@@ -14,13 +14,17 @@ function schedule(routineId: string) {
   jobs.delete(routineId);
   const routine = repo.getRoutine(routineId);
   if (!routine?.enabled) return;
-  jobs.set(
-    routineId,
-    new Cron(routine.schedule, { protect: true }, () => {
-      const fresh = repo.getRoutine(routineId);
-      if (fresh) runRoutine(fresh);
-    }),
-  );
+  try {
+    jobs.set(
+      routineId,
+      new Cron(routine.schedule, { protect: true }, () => {
+        const fresh = repo.getRoutine(routineId);
+        if (fresh) runRoutine(fresh);
+      }),
+    );
+  } catch (err) {
+    console.error(`[dots] invalid schedule for routine ${routineId}: ${routine.schedule}`, err);
+  }
 }
 
 export function startScheduler() {

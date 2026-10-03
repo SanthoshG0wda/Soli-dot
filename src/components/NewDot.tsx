@@ -50,13 +50,13 @@ export default function NewDot() {
           <div className="mt-8 space-y-4">
             <label className="block">
               <span className="eyebrow mb-1.5 block">Name</span>
-              <input className="field" placeholder={placeholder} value={name} onChange={(e) => setName(e.target.value)} />
+              <input className="field" aria-label="placeholder" placeholder={placeholder} value={name} onChange={(e) => setName(e.target.value)} />
             </label>
             <label className="block">
               <span className="eyebrow mb-1.5 block">Job</span>
               <textarea
                 className="field h-auto min-h-20 resize-none py-2 leading-normal"
-                placeholder="What should it help with?"
+                aria-label="What should it help with?" placeholder="What should it help with?"
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
               />

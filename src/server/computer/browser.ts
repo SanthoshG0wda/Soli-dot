@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { chromium, type BrowserContext, type CDPSession, type Page } from "playwright";
 import { DATA_DIR } from "../db";
 import { emit } from "../bus";
+import { assertDotId } from "../validate";
 import { clickScript, typeScript } from "./dom-actions";
 
 // Each dot gets its own persistent Chrome profile, so logins survive restarts. It always runs headless:
@@ -18,13 +19,17 @@ const g = globalThis as unknown as { __dotsBrowsers?: Map<string, Promise<Sessio
 const sessions: Map<string, Promise<Session>> = (g.__dotsBrowsers ??= new Map());
 
 function profileDir(dotId: string) {
+  assertDotId(dotId);
   const dir = path.join(DATA_DIR, "dots", dotId, "browser");
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
 
 // The last real page the dot was on. Kept on disk so closing the window (or restarting) doesn't lose its place.
-const lastUrlFile = (dotId: string) => path.join(DATA_DIR, "dots", dotId, "last-url");
+const lastUrlFile = (dotId: string) => {
+  assertDotId(dotId);
+  return path.join(DATA_DIR, "dots", dotId, "last-url");
+};
 const isReal = (url: string) => /^https?:\/\//.test(url);
 
 function lastUrl(dotId: string): string | null {
@@ -70,6 +75,13 @@ async function freeProfile(dir: string) {
     }
   };
   if (!pid || pid === process.pid || !alive()) return;
+  // Guard against PID recycling: only signal processes that look like Chrome.
+  try {
+    const cmd = fs.readFileSync(`/proc/${pid}/cmdline`, "utf8");
+    if (!/chrom/i.test(cmd)) return;
+  } catch {
+    // Non-Linux (no /proc) or unreadable: fall through to the SIGTERM below.
+  }
   process.kill(pid, "SIGTERM");
   for (let i = 0; i < 50 && alive(); i++) await new Promise((r) => setTimeout(r, 100));
   if (alive()) process.kill(pid, "SIGKILL");
@@ -398,6 +410,7 @@ export async function closeBrowser(dotId: string) {
 
 /** The dot was deleted: drop its browser profile (and the logins in it) along with its workspace. */
 export async function deleteData(dotId: string) {
+  assertDotId(dotId);
   await closeBrowser(dotId);
   sessions.delete(dotId);
   fs.rmSync(path.join(DATA_DIR, "dots", dotId), { recursive: true, force: true });

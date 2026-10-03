@@ -8,7 +8,11 @@ export default function Toasts() {
   const toasts = useStore((s) => s.toasts);
   const dots = useStore((s) => s.dots);
   return (
-    <div className="pointer-events-none fixed top-3 right-3 left-3 z-50 flex flex-col gap-2 sm:top-5 sm:right-5 sm:left-auto sm:w-[340px]">
+    <div
+      className="pointer-events-none fixed top-3 right-3 left-3 z-50 flex flex-col gap-2 sm:top-5 sm:right-5 sm:left-auto sm:w-[340px]"
+      role="status"
+      aria-live="polite"
+    >
       {toasts.map((t) => {
         const dot = dots.find((d) => d.id === t.dotId);
         return (

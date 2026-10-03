@@ -134,7 +134,18 @@ export async function run(dotId: string, command: string): Promise<string> {
   return out || "(no output)";
 }
 
-const abs = (p: string) => (p.startsWith("/") ? p : `${WORKSPACE}/${p.replace(/^\.?\/?(workspace\/)?/, "")}`);
+function normalizeToWorkspace(p: string): string {
+  // Jail every path inside WORKSPACE. Absolute paths outside it are rejected
+  // (local paths go through resolveWorkspacePath; cloud must match).
+  if (p.startsWith("/")) {
+    const norm = p.replace(/\/+/g, "/");
+    if (norm === WORKSPACE || norm.startsWith(`${WORKSPACE}/`)) return norm;
+    throw new Error("Path must stay inside /workspace");
+  }
+  return `${WORKSPACE}/${p.replace(/^\.?\/?(workspace\/)?/, "")}`;
+}
+
+const abs = normalizeToWorkspace;
 
 export async function readFile(dotId: string, p: string): Promise<Buffer> {
   const { sb } = await box(dotId);

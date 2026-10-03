@@ -1,4 +1,5 @@
 import { streamScreen } from "@/server/computer";
+import { isDotId } from "@/server/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -6,6 +7,7 @@ export const dynamic = "force-dynamic";
 // boundary right away, so the browser paints it immediately instead of waiting for the following frame.
 export async function GET(req: Request, ctx: RouteContext<"/api/dots/[id]/stream">) {
   const { id } = await ctx.params;
+  if (!isDotId(id)) return new Response("Invalid dot id.", { status: 400 });
   const enc = new TextEncoder();
   let stop: (() => Promise<void>) | undefined;
   const body = new ReadableStream<Uint8Array>({

@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { getSetting, setSetting } from "../db";
 import { seal, unseal } from "../vault";
 import { isOpenRouterModel, openModels, openRouterId, openRouterKey, openrouter, preferredOpenModel, smallOpenModel } from "./openrouter";
+import { isNvidiaModel, nimModels, nvidia, nvidiaId, nvidiaKey, preferredNimModel, smallNimModel } from "./nvidia";
 
 // Models are chosen from what the API key can actually use. Precedence for a dot's model:
 // the dot's own choice → the default picked in Settings → DOTS_MODEL → best available.
@@ -94,19 +95,25 @@ async function resolveOpenAI(): Promise<{ main: string; review: string; availabl
   };
 }
 
-/** OpenAI models (with an OpenAI key) first, then open models (with an OpenRouter key). */
+/** OpenAI models (with an OpenAI key) first, then NIM / open models. */
 async function resolve() {
-  const [oa, open] = await Promise.all([
+  const [oa, open, nim] = await Promise.all([
     resolveOpenAI(),
     openModels().catch((err) => {
       console.warn("[dots] couldn't list OpenRouter models:", err instanceof Error ? err.message : err);
       return [] as string[];
     }),
+    nimModels().catch((err) => {
+      console.warn("[dots] couldn't list NVIDIA models:", err instanceof Error ? err.message : err);
+      return [] as string[];
+    }),
   ]);
+  const openFallback = open.length ? preferredOpenModel(open) : nim.length ? preferredNimModel(nim) : process.env.DOTS_MODEL || MAIN_PREFERENCE[0];
+  const smallFallback = open.length ? smallOpenModel(open) : nim.length ? smallNimModel(nim) : process.env.DOTS_REVIEW_MODEL || REVIEW_PREFERENCE[0];
   const resolved = {
-    main: oa?.main ?? (open.length ? preferredOpenModel(open) : process.env.DOTS_MODEL || MAIN_PREFERENCE[0]),
-    review: oa?.review ?? (open.length ? smallOpenModel(open) : process.env.DOTS_REVIEW_MODEL || REVIEW_PREFERENCE[0]),
-    available: [...(oa?.available ?? []), ...open],
+    main: oa?.main ?? openFallback,
+    review: oa?.review ?? smallFallback,
+    available: [...(oa?.available ?? []), ...nim, ...open],
   };
   g.__dotsResolved = resolved;
   console.log(`[dots] default ${resolved.main} (agent), ${resolved.review} (rule review); ${resolved.available.length} models available`);
@@ -119,14 +126,18 @@ export function resetModels() {
   g.__dotsResolved = undefined;
 }
 
-/** The API client for a model, the model id that API expects, and whether it keeps conversation state. */
-export function clientFor(model: string): { client: OpenAI; model: string; stateless: boolean } {
-  return isOpenRouterModel(model) ? { client: openrouter(), model: openRouterId(model), stateless: true } : { client: openai(), model, stateless: false };
+/** The API client for a model, the model id that API expects, and whether it keeps conversation state.
+ *  `useCompletionsAPI` is true for providers (e.g. NVIDIA NIM) that expose only /v1/chat/completions,
+ *  not the newer /v1/responses endpoint. */
+export function clientFor(model: string): { client: OpenAI; model: string; stateless: boolean; useCompletionsAPI: boolean } {
+  if (isOpenRouterModel(model)) return { client: openrouter(), model: openRouterId(model), stateless: true, useCompletionsAPI: false };
+  if (isNvidiaModel(model)) return { client: nvidia(), model: nvidiaId(model), stateless: true, useCompletionsAPI: true };
+  return { client: openai(), model, stateless: false, useCompletionsAPI: false };
 }
 
-/** True when any model provider is set up (OpenAI or OpenRouter). */
+/** True when any model provider is set up (OpenAI, NVIDIA NIM, or OpenRouter). */
 export function canThink(): boolean {
-  return hasKey() || Boolean(openRouterKey());
+  return hasKey() || Boolean(nvidiaKey()) || Boolean(openRouterKey());
 }
 
 export function models(): Promise<{ main: string; review: string; available: string[] }> {
@@ -151,7 +162,12 @@ export function knownModels(): { main: string; review: string; available: string
 
 /** gpt-5.x / gpt-6 / o-series accept `reasoning`; gpt-4.1 and friends reject it. */
 export function isReasoningModel(model: string): boolean {
-  return !isOpenRouterModel(model) && /^(gpt-[5-9]|o[1-9])/.test(model) && !/chat/.test(model);
+  return !isOpenRouterModel(model) && !isNvidiaModel(model) && /^(gpt-[5-9]|o[1-9])/.test(model) && !/chat/.test(model);
+}
+
+/** Whether a stateless (third-party) model gets a server-side web-search tool. Only OpenRouter has one. */
+export function statelessSearchTool(model: string): "openrouter" | null {
+  return isOpenRouterModel(model) ? "openrouter" : null;
 }
 
 /** OpenAI's GA computer tool needs a recent model; older ones get the page-reading tools only. */

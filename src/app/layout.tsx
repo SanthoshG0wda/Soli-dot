@@ -17,6 +17,13 @@ export const metadata: Metadata = {
   description: "Open-source personal AI agents that work on their own, on their own computers",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover" as const,
+  themeColor: "#f6f6f6",
+};
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${jetbrainsMono.variable} h-full`}>

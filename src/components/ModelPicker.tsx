@@ -5,10 +5,12 @@ import { Check, ChevronDown, Cpu } from "lucide-react";
 import { useStore } from "@/lib/store";
 
 const OPEN = "openrouter:";
-const label = (id: string) => (id.startsWith(OPEN) ? id.slice(OPEN.length) : id);
+const NIM = "nvidia:";
+const label = (id: string) => (id.startsWith(OPEN) ? id.slice(OPEN.length) : id.startsWith(NIM) ? id.slice(NIM.length) : id);
 
 function hint(id: string): string | null {
   if (id.startsWith(OPEN)) return "Open model · OpenRouter";
+  if (id.startsWith(NIM)) return "NIM model · NVIDIA";
   if (/-pro\b/.test(id)) return "Strongest · slower";
   if (/-nano\b/.test(id)) return "Fastest · cheapest";
   if (/-mini\b/.test(id)) return "Fast · cheaper";
@@ -38,13 +40,22 @@ export default function ModelPicker({
   const list = models.length ? models : fallback ? [fallback] : [];
   const options: { id: string | null; label: string; sub: string | null; group?: string }[] = [
     ...(allowDefault ? [{ id: null, label: "Default", sub: fallback ? label(fallback) : null }] : []),
-    ...list.map((id, i) => ({
-      id,
-      label: label(id),
-      sub: hint(id),
-      // a heading above the first open model (and above OpenAI's when both are there)
-      group: id.startsWith(OPEN) && !list[i - 1]?.startsWith(OPEN) ? "Open models" : i === 0 && list.some((m) => m.startsWith(OPEN)) ? "OpenAI" : undefined,
-    })),
+    ...list.map((id, i) => {
+      const prev = list[i - 1];
+      const isThirdParty = (m?: string) => m?.startsWith(OPEN) || m?.startsWith(NIM);
+      const groupName = (m: string) => (m.startsWith(OPEN) ? "Open models" : m.startsWith(NIM) ? "NVIDIA NIM" : undefined);
+      return {
+        id,
+        label: label(id),
+        sub: hint(id),
+        // a heading above the first model of each third-party group (and above OpenAI's when both are there)
+        group: !isThirdParty(id) && i === 0 && list.some(isThirdParty)
+          ? "OpenAI"
+          : groupName(id) && groupName(prev ?? "") !== groupName(id)
+            ? groupName(id)
+            : undefined,
+      };
+    }),
   ];
 
   return (

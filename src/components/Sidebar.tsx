@@ -116,7 +116,7 @@ export default function Sidebar() {
           <input
             autoFocus
             className="field h-9 bg-popover pr-8 pl-8"
-            placeholder="Search chats and dots"
+            aria-label="Search chats and dots" placeholder="Search chats and dots"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Escape" && closeSearch()}

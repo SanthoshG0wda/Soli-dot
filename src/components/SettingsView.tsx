@@ -3,7 +3,7 @@
 import { useState, useSyncExternalStore, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { Bell, KeyRound, Lock, LogOut, Plus, RefreshCw } from "lucide-react";
-import { connectApp, deletePassword, refreshApps, savePassword, setCloudKey, setDefaultModel, setOpenAIKey, setOpenRouterKey, signInComposio, signOutComposio } from "@/app/actions";
+import { connectApp, deletePassword, refreshApps, savePassword, setCloudKey, setDefaultModel, setNvidiaKey, setOpenAIKey, setOpenRouterKey, signInComposio, signOutComposio } from "@/app/actions";
 import { useStore } from "@/lib/store";
 import { openAfter } from "@/lib/popup";
 import { Empty, PageHeader, RemoveButton, RuleEditor, Section } from "./SettingsKit";
@@ -61,9 +61,9 @@ export default function SettingsView() {
               }}
             >
               <div className="grid gap-3 sm:grid-cols-3">
-                <input className="field" placeholder="Site, e.g. github.com" value={form.site} onChange={(e) => setForm({ ...form, site: e.target.value })} />
-                <input className="field" placeholder="Username or email" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-                <input className="field" type="password" placeholder="Password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                <input className="field" aria-label="Site, e.g. github.com" placeholder="Site, e.g. github.com" value={form.site} onChange={(e) => setForm({ ...form, site: e.target.value })} />
+                <input className="field" aria-label="Username or email" placeholder="Username or email" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+                <input className="field" type="password" aria-label="Password" placeholder="Password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
               </div>
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1.5 text-caption text-foreground/45">
@@ -121,8 +121,9 @@ export default function SettingsView() {
           </div>
         </Section>
 
-        <Section eyebrow="Engine" title="Models & computers" description="Models come from what your OpenAI key can use, plus open models once you add an OpenRouter key.">
+        <Section eyebrow="Engine" title="Models & computers" description="Models come from what your OpenAI key can use, plus NIM and open models once you add those keys.">
           <ApiKey />
+          <NvidiaKey />
           <OpenModelsKey />
           <CloudKey />
           <div className="surface mb-3 flex items-center gap-3 p-4">
@@ -287,11 +288,11 @@ function ApiKey() {
             start(async () => {
               const err = await setOpenAIKey(key);
               setError(err);
-              if (!err) (setKey(""), setEditing(false));
+              if (!err) { setKey(""); setEditing(false); }
             });
           }}
         >
-          <input className="field font-mono text-[13px]" type="password" placeholder="sk-..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
+          <input className="field font-mono text-[13px]" type="password" aria-label="sk-..." placeholder="sk-..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
           <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
             {pending ? "Checking…" : "Save"}
           </button>
@@ -314,7 +315,7 @@ function CloudKey() {
     start(async () => {
       const err = await setCloudKey(value);
       setError(err);
-      if (!err) (setKey(""), setEditing(false));
+      if (!err) { setKey(""); setEditing(false); }
     });
 
   return (
@@ -351,7 +352,68 @@ function CloudKey() {
             save(key);
           }}
         >
-          <input className="field font-mono text-[13px]" type="password" placeholder="e2b_..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
+          <input className="field font-mono text-[13px]" type="password" aria-label="e2b_..." placeholder="e2b_..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
+          <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
+            {pending ? "Checking…" : "Save"}
+          </button>
+        </form>
+      )}
+      {error && <p className="mt-2 text-caption text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/** Optional NVIDIA key: adds NIM models (Llama, Mistral, DeepSeek, Qwen, Nemotron, gpt-oss…) to every model picker. */
+function NvidiaKey() {
+  const computer = useStore((s) => s.computer);
+  const nimCount = computer.models.filter((m) => m.startsWith("nvidia:")).length;
+  const [editing, setEditing] = useState(false);
+  const [key, setKey] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const saved = computer.nvidia !== null;
+  const save = (value: string) =>
+    start(async () => {
+      const err = await setNvidiaKey(value);
+      setError(err);
+      if (!err) { setKey(""); setEditing(false); }
+    });
+
+  return (
+    <div id="nvidia-models" className="surface mb-3 scroll-mt-6 p-4">
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <div className="text-[14px]">
+            NVIDIA NIM <span className="text-foreground/40">· optional</span>
+          </div>
+          <div className="text-body-sm text-foreground/55">
+            {computer.nvidia === "env"
+              ? `Connected from NVIDIA_API_KEY${nimCount ? ` · ${nimCount} NIM models in the model picker` : ""}.`
+              : saved
+                ? `Connected${nimCount ? ` · ${nimCount} NIM models in the model picker` : ""}. Voice calls still use OpenAI.`
+                : "Paste an NVIDIA key (from build.nvidia.com) to run dots on NIM models like Llama, Mistral, DeepSeek, Qwen and Nemotron."}
+          </div>
+        </div>
+        {computer.nvidia === "settings" && !editing && (
+          <>
+            <button className="btn-quiet h-8 px-3 text-[13px]" disabled={pending} onClick={() => save("")}>
+              Remove
+            </button>
+            <button className="btn-secondary h-8 px-3 text-[13px]" onClick={() => setEditing(true)}>
+              Change
+            </button>
+          </>
+        )}
+      </div>
+      {(editing || !saved) && computer.nvidia !== "env" && (
+        <form
+          className="mt-3 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            save(key);
+          }}
+        >
+          <input className="field font-mono text-[13px]" type="password" aria-label="NVIDIA API key" placeholder="nvapi-..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
           <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
             {pending ? "Checking…" : "Save"}
           </button>
@@ -375,7 +437,7 @@ function OpenModelsKey() {
     start(async () => {
       const err = await setOpenRouterKey(value);
       setError(err);
-      if (!err) (setKey(""), setEditing(false));
+      if (!err) { setKey(""); setEditing(false); }
     });
 
   return (
@@ -412,7 +474,7 @@ function OpenModelsKey() {
             save(key);
           }}
         >
-          <input className="field font-mono text-[13px]" type="password" placeholder="sk-or-..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
+          <input className="field font-mono text-[13px]" type="password" aria-label="sk-or-..." placeholder="sk-or-..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
           <button className="btn-primary shrink-0" disabled={pending || !key.trim()}>
             {pending ? "Checking…" : "Save"}
           </button>
