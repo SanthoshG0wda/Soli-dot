@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Soli AI — Executive Legal Themes Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+  <style>
+    /* CSS Reset */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.5;
+      background: #090b10;
+      color: #e5e7eb;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Top Showcase Bar */
+    .showcase-header {
+      background: #0e121a;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 16px 28px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(16px);
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+      transition: background 0.3s;
+    }
+
+    .brand-name {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fff;
+    }
+
+    .brand-tag {
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 2px 8px;
+      border-radius: 100px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Theme Switcher Pills */
+    .theme-selector {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #141824;
+      padding: 5px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .theme-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 13px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .theme-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .theme-btn.active {
+      background: #1e2436;
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.16);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    .theme-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+    }
+
+    .dot-sapphire { background: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.6); }
+    .dot-platinum { background: #f8fafc; box-shadow: 0 0 8px rgba(255, 255, 255, 0.6); }
+    .dot-crimson { background: #e11d48; box-shadow: 0 0 8px rgba(225, 29, 72, 0.6); }
+    .dot-steel { background: #0ea5e9; box-shadow: 0 0 8px rgba(14, 165, 233, 0.6); }
+    .dot-oxford { background: #1e3a8a; border: 1px solid #94a3b8; }
+
+    /* Theme Description Banner */
+    .theme-info-banner {
+      padding: 18px 28px;
+      background: #10141e;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .theme-info-left h2 {
+      font-size: 17px;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .theme-info-left p {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    .color-swatches {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .swatch-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: #94a3b8;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 4px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .swatch-color {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    /* Live Workspace Mockup Container */
+    .workspace-wrapper {
+      padding: 24px 28px;
+      max-width: 1560px;
+      margin: 0 auto;
+    }
+
+    /* ==========================================================================
+       THEME STYLES (EXECUTIVE DARK PALETTES)
+       ========================================================================== */
+
+    /* 1. Executive Sapphire (Court / Institutional Blue) */
+    .theme-executive-sapphire {
+      --bg-canvas: #090b10;
+      --bg-panel: #0e121a;
+      --bg-card: #151924;
+      --bg-input: #111520;
+      --text-main: #f3f4f6;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-muted: rgba(59, 130, 246, 0.12);
+      --border-main: rgba(255, 255, 255, 0.09);
+      --border-subtle: rgba(255, 255, 255, 0.05);
+      --doc-paper: #111520;
+      --doc-text: #f8fafc;
+      --doc-border: rgba(59, 130, 246, 0.22);
+      --doc-font: 'Inter', sans-serif;
+      --shadow-elevation: 0 16px 36px -8px rgba(0, 0, 0, 0.65);
+      --badge-bg: rgba(59, 130, 246, 0.14);
+      --badge-text: #60a5fa;
+      --logo-gradient: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    }
+
+    /* 2. Executive Platinum (Advocate Monochrome - Black & White Court Tradition) */
+    .theme-executive-platinum {
+      --bg-canvas: #090a0d;
+      --bg-panel: #0d0f14;
+      --bg-card: #141720;
+      --bg-input: #10121a;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent: #f8fafc;
+      --accent-hover: #e2e8f0;
+      --accent-muted: rgba(255, 255, 255, 0.1);
+      --border-main: rgba(255, 255, 255, 0.12);
+      --border-subtle: rgba(255, 255, 255, 0.06);
+      --doc-paper: #10121a;
+      --doc-text: #f8fafc;
+      --doc-border: rgba(255, 255, 255, 0.18);
+      --doc-font: 'Inter', sans-serif;
+      --shadow-elevation: 0 16px 36px -8px rgba(0, 0, 0, 0.7);
+      --badge-bg: rgba(255, 255, 255, 0.1);
+      --badge-text: #f8fafc;
+      --logo-gradient: linear-gradient(135deg, #e2e8f0, #94a3b8);
+    }
+
+    /* 3. Executive Crimson (Constitutional Seal & Authority) */
+    .theme-executive-crimson {
+      --bg-canvas: #0b090b;
+      --bg-panel: #110d11;
+      --bg-card: #181318;
+      --bg-input: #140f14;
+      --text-main: #f5f5f5;
+      --text-muted: #a8a29e;
+      --text-dim: #78716c;
+      --accent: #e11d48;
+      --accent-hover: #be123c;
+      --accent-muted: rgba(225, 29, 72, 0.12);
+      --border-main: rgba(255, 255, 255, 0.09);
+      --border-subtle: rgba(255, 255, 255, 0.05);
+      --doc-paper: #140f14;
+      --doc-text: #fafafa;
+      --doc-border: rgba(225, 29, 72, 0.22);
+      --doc-font: 'Inter', sans-serif;
+      --shadow-elevation: 0 16px 36px -8px rgba(0, 0, 0, 0.7);
+      --badge-bg: rgba(225, 29, 72, 0.14);
+      --badge-text: #fb7185;
+      --logo-gradient: linear-gradient(135deg, #e11d48, #9f1239);
+    }
+
+    /* 4. Executive Steel Slate (Nordic / Corporate Law) */
+    .theme-executive-steel {
+      --bg-canvas: #080b0f;
+      --bg-panel: #0d1117;
+      --bg-card: #131922;
+      --bg-input: #101620;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent: #0ea5e9;
+      --accent-hover: #0284c7;
+      --accent-muted: rgba(14, 165, 233, 0.12);
+      --border-main: rgba(255, 255, 255, 0.09);
+      --border-subtle: rgba(255, 255, 255, 0.05);
+      --doc-paper: #101620;
+      --doc-text: #f8fafc;
+      --doc-border: rgba(14, 165, 233, 0.22);
+      --doc-font: 'Inter', sans-serif;
+      --shadow-elevation: 0 16px 36px -8px rgba(0, 0, 0, 0.65);
+      --badge-bg: rgba(14, 165, 233, 0.14);
+      --badge-text: #38bdf8;
+      --logo-gradient: linear-gradient(135deg, #0ea5e9, #0369a1);
+    }
+
+    /* 5. Oxford Legal (Light Option Comparison) */
+    .theme-oxford {
+      --bg-canvas: #f8f6f0;
+      --bg-panel: #ffffff;
+      --bg-card: #fdfbf7;
+      --bg-input: #ffffff;
+      --text-main: #1c1917;
+      --text-muted: #57534e;
+      --text-dim: #a8a29e;
+      --accent: #1e3a8a;
+      --accent-hover: #172554;
+      --accent-muted: rgba(30, 58, 138, 0.08);
+      --border-main: #e7e5e0;
+      --border-subtle: #f0eee9;
+      --doc-paper: #ffffff;
+      --doc-text: #1c1917;
+      --doc-border: #e2ded5;
+      --doc-font: 'Newsreader', serif;
+      --shadow-elevation: 0 12px 28px -6px rgba(44, 38, 28, 0.08);
+      --badge-bg: rgba(30, 58, 138, 0.1);
+      --badge-text: #1e3a8a;
+      --logo-gradient: linear-gradient(135deg, #1e3a8a, #172554);
+    }
+
+    /* App Frame */
+    .app-frame {
+      background: var(--bg-canvas);
+      color: var(--text-main);
+      border-radius: 16px;
+      border: 1px solid var(--border-main);
+      overflow: hidden;
+      box-shadow: var(--shadow-elevation);
+      height: 720px;
+      display: flex;
+      flex-direction: column;
+      transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    }
+
+    /* Frame Top Header */
+    .app-header {
+      height: 52px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-main);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+    }
+
+    .app-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .dot-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .dot-name-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .status-pill {
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-indicator {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .app-header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-header {
+      height: 30px;
+      padding: 0 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-main);
+      background: var(--bg-card);
+      color: var(--text-muted);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .btn-header:hover {
+      color: var(--text-main);
+      border-color: var(--accent);
+    }
+
+    /* Split Workspace */
+    .app-body {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      position: relative;
+    }
+
+    /* Left Pane: Chat */
+    .chat-pane {
+      flex: 1;
+      background: var(--bg-panel);
+      display: flex;
+      flex-direction: column;
+      min-width: 320px;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Chat Rows */
+    .user-msg {
+      align-self: flex-end;
+      background: var(--bg-card);
+      border: 1px solid var(--border-main);
+      padding: 12px 16px;
+      border-radius: 12px 12px 2px 12px;
+      font-size: 14px;
+      max-width: 80%;
+      color: var(--text-main);
+    }
+
+    .soli-msg {
+      align-self: flex-start;
+      display: flex;
+      gap: 12px;
+      max-width: 90%;
+    }
+
+    .soli-avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--accent-muted);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .soli-content {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .soli-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-main);
+      border-radius: 12px;
+      padding: 14px 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .soli-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--badge-bg);
+      color: var(--badge-text);
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .soli-text {
+      font-size: 14px;
+      color: var(--text-main);
+      line-height: 1.6;
+    }
+
+    .soli-action-banner {
+      margin-top: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: var(--accent-muted);
+      border: 1px solid var(--border-main);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .soli-action-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    .btn-action {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Chat Input */
+    .chat-composer {
+      padding: 16px 20px;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .composer-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border-main);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .composer-input {
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-size: 14px;
+      width: 100%;
+      outline: none;
+    }
+
+    .composer-send {
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    /* Splitter Gutter */
+    .splitter-gutter {
+      width: 10px;
+      background: transparent;
+      position: relative;
+      cursor: col-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+    }
+
+    .splitter-line {
+      width: 1px;
+      height: 100%;
+      background: var(--border-main);
+      transition: all 0.2s;
+    }
+
+    .splitter-gutter:hover .splitter-line {
+      width: 2px;
+      background: var(--accent);
+    }
+
+    .splitter-handle {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 32px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-main);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .splitter-dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--text-dim);
+    }
+
+    /* Right Pane: Artifact Board */
+    .artifact-pane {
+      width: 600px;
+      background: var(--bg-canvas);
+      border-left: 1px solid var(--border-main);
+      display: flex;
+      flex-direction: column;
+      min-width: 340px;
+    }
+
+    .artifact-header {
+      height: 52px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-main);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+    }
+
+    .artifact-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .artifact-icon {
+      font-size: 16px;
+      color: var(--accent);
+    }
+
+    .artifact-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      max-width: 280px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .artifact-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-pill {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 5px;
+      border: 1px solid var(--border-main);
+      background: var(--bg-card);
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .btn-pill.active {
+      background: var(--accent-muted);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    /* Court Document Canvas */
+    .artifact-content {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      background: var(--bg-canvas);
+      display: flex;
+      justify-content: center;
+    }
+
+    .court-sheet {
+      width: 100%;
+      max-width: 540px;
+      background: var(--doc-paper);
+      color: var(--doc-text);
+      border: 1px solid var(--doc-border);
+      border-radius: 8px;
+      padding: 32px 28px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      font-family: var(--doc-font);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .court-heading {
+      text-align: center;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed var(--border-main);
+    }
+
+    .court-matter {
+      margin-bottom: 16px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .court-parties {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .court-petition-title {
+      text-align: center;
+      font-weight: 700;
+      font-size: 12px;
+      margin: 16px 0;
+      text-decoration: underline;
+    }
+
+    .court-section-title {
+      font-weight: 600;
+      font-size: 12px;
+      margin: 12px 0 6px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .court-para {
+      margin-bottom: 8px;
+      text-align: justify;
+      color: var(--doc-text);
+      opacity: 0.9;
+    }
+
+    .court-citation {
+      background: var(--accent-muted);
+      border-left: 3px solid var(--accent);
+      padding: 6px 10px;
+      margin: 8px 0;
+      font-style: italic;
+      font-size: 12px;
+    }
+
+    /* Comparison Grid Section */
+    .section-divider {
+      margin: 48px auto 24px;
+      max-width: 1560px;
+      padding: 0 28px;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .section-sub {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .theme-card {
+      background: #11141c;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .theme-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    .theme-card.active-card {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+    }
+
+    .card-preview-thumb {
+      height: 180px;
+      padding: 16px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-details {
+      padding: 18px;
+      background: #151924;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-desc {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    .card-palette {
+      display: flex;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .palette-circle {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Showcase Bar -->
+  <header class="showcase-header">
+    <div class="brand-title">
+      <div class="brand-logo" id="main-logo">⚖️</div>
+      <div>
+        <div class="brand-name">Soli Legal AI</div>
+        <div style="font-size: 11px; color: #94a3b8;">Executive Dark Legal Accents Explorer</div>
+      </div>
+    </div>
+
+    <!-- Theme Switcher Pills (Targeted Legal Accents) -->
+    <div class="theme-selector">
+      <button class="theme-btn active" onclick="switchTheme('executive-sapphire', this)">
+        <span class="theme-dot dot-sapphire"></span>
+        <span>1. Judicial Sapphire</span>
+      </button>
+
+      <button class="theme-btn" onclick="switchTheme('executive-platinum', this)">
+        <span class="theme-dot dot-platinum"></span>
+        <span>2. Advocate Monochrome</span>
+      </button>
+
+      <button class="theme-btn" onclick="switchTheme('executive-crimson', this)">
+        <span class="theme-dot dot-crimson"></span>
+        <span>3. Seal Crimson</span>
+      </button>
+
+      <button class="theme-btn" onclick="switchTheme('executive-steel', this)">
+        <span class="theme-dot dot-steel"></span>
+        <span>4. Steel Slate</span>
+      </button>
+
+      <button class="theme-btn" onclick="switchTheme('oxford', this)">
+        <span class="theme-dot dot-oxford"></span>
+        <span>5. Oxford Parchment (Light)</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Theme Info Banner -->
+  <div class="theme-info-banner">
+    <div class="theme-info-left">
+      <h2 id="banner-title">🏛️ Judicial Sapphire — Supreme Court Blue & Obsidian</h2>
+      <p id="banner-desc">Authoritative, institutional, and solemn. High-contrast sapphire blue conveys precision and constitutional authority.</p>
+    </div>
+
+    <div class="color-swatches" id="swatches-container">
+      <div class="swatch-group">
+        <span class="swatch-color" style="background: #090b10;"></span>
+        <span>Canvas: #090B10</span>
+      </div>
+      <div class="swatch-group">
+        <span class="swatch-color" style="background: #151924;"></span>
+        <span>Card: #151924</span>
+      </div>
+      <div class="swatch-group">
+        <span class="swatch-color" style="background: #3b82f6;"></span>
+        <span>Accent: #3B82F6</span>
+      </div>
+      <div class="swatch-group">
+        <span class="swatch-color" style="background: #f8fafc;"></span>
+        <span>Text: #F8FAFC</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Interactive Workspace -->
+  <div class="workspace-wrapper">
+    <div class="app-frame theme-executive-sapphire" id="live-frame">
+      
+      <!-- Frame App Header -->
+      <div class="app-header">
+        <div class="app-header-left">
+          <div class="dot-avatar">S</div>
+          <div>
+            <div class="dot-name-title">Soli Legal Counsel</div>
+            <div class="status-pill">
+              <span class="status-indicator"></span>
+              <span>BNSS / Supreme Court Corpus Grounded</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="app-header-right">
+          <button class="btn-header">
+            <span>📄</span>
+            <span>1 Petition in Session</span>
+          </button>
+          <button class="btn-header">
+            <span>⚙️</span>
+            <span>Chambers Settings</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- App Body (Two-way Resizable Split Simulation) -->
+      <div class="app-body">
+        
+        <!-- Chat Area (Left Pane) -->
+        <div class="chat-pane" id="chat-pane">
+          <div class="chat-messages">
+            <!-- User Message -->
+            <div class="user-msg">
+              Draft an application for Regular Bail under Section 483 BNSS in FIR No. 42/2026 with Satender Antil grounds
+            </div>
+
+            <!-- Soli Message -->
+            <div class="soli-msg">
+              <div class="soli-avatar">⚖️</div>
+              <div class="soli-content">
+                <div class="soli-card">
+                  <span class="soli-badge">Soli Legal AI · Court Ready</span>
+                  <div class="soli-text">
+                    I have prepared a court-ready application for Regular Bail under <strong>Section 483 BNSS</strong>. The draft incorporates the landmark principles laid down by the Hon'ble Supreme Court in <em>Satender Kumar Antil v. CBI (2022)</em>, establishing satisfaction of the triple test and pre-trial liberty rights under Article 21.
+                  </div>
+
+                  <div class="soli-action-banner">
+                    <div class="soli-action-left">
+                      <span>📜</span>
+                      <span>Regular Bail Petition (Sec 483 BNSS) — Open in Preview Board</span>
+                    </div>
+                    <button class="btn-action">Preview Board →</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Composer -->
+          <div class="chat-composer">
+            <div class="composer-box">
+              <input type="text" class="composer-input" placeholder="Ask Soli to draft a petition, verify section, or research case laws...">
+              <button class="composer-send">↑</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Splitter Gutter -->
+        <div class="splitter-gutter" id="splitter" title="Drag left/right to resize Chat & Document Preview">
+          <div class="splitter-line"></div>
+          <div class="splitter-handle">
+            <span class="splitter-dot"></span>
+            <span class="splitter-dot"></span>
+            <span class="splitter-dot"></span>
+          </div>
+        </div>
+
+        <!-- Artifact Board / Document Preview (Right Pane) -->
+        <div class="artifact-pane" id="artifact-pane">
+          <div class="artifact-header">
+            <div class="artifact-title-group">
+              <span class="artifact-icon">⚖️</span>
+              <span class="artifact-title">Bail Application (Sec 483 BNSS) - Ramesh Kumar</span>
+            </div>
+
+            <div class="artifact-controls">
+              <button class="btn-pill active">Court Paper</button>
+              <button class="btn-pill">Markdown</button>
+              <button class="btn-pill">PDF View</button>
+              <button class="btn-pill" style="color: var(--accent); font-weight: bold;">📥 PDF</button>
+              <button class="btn-pill" style="color: var(--accent); font-weight: bold;">📥 DOCX</button>
+            </div>
+          </div>
+
+          <!-- Document Content Sheet -->
+          <div class="artifact-content">
+            <div class="court-sheet">
+              <div class="court-heading">
+                IN THE COURT OF THE PRINCIPAL DISTRICT AND SESSIONS JUDGE AT NEW DELHI
+              </div>
+
+              <div class="court-matter">
+                <strong>CRIMINAL MISC. BAIL APPLICATION NO. ______ OF 2026</strong><br>
+                IN THE MATTER OF:
+              </div>
+
+              <div class="court-parties">
+                <span>RAMESH KUMAR ... APPLICANT</span>
+                <span>VERSUS</span>
+                <span>STATE (NCT OF DELHI) ... RESPONDENT</span>
+              </div>
+
+              <div style="font-size: 11px; font-family: 'JetBrains Mono', monospace; opacity: 0.8; margin-bottom: 12px;">
+                FIR NO.: 42/2026 | POLICE STATION: CONNAUGHT PLACE<br>
+                OFFENSES UNDER SECTIONS: 318(4), 61(2) OF BHARATIYA NYAYA SANHITA (BNS), 2023
+              </div>
+
+              <div class="court-petition-title">
+                APPLICATION FOR ENLARGEMENT ON REGULAR BAIL UNDER SECTION 483 OF THE BHARATIYA NAGARIK SURAKSHA SANHITA (BNSS), 2023
+              </div>
+
+              <div class="court-section-title">MOST RESPECTFULLY SHOWETH:</div>
+              <p class="court-para">
+                1. That the Applicant is a permanent resident having deep roots in society, no criminal antecedents, and has cooperated fully with the investigating agency.
+              </p>
+              <p class="court-para">
+                2. That the police remand of the Applicant is complete and no recovery remains to be effected at the instance of the Applicant.
+              </p>
+
+              <div class="court-section-title">GROUNDS FOR REGULAR BAIL:</div>
+              <p class="court-para">
+                <strong>A. BAIL IS THE RULE, JAIL IS THE EXCEPTION (SATENDER KUMAR ANTIL V. CBI):</strong>
+              </p>
+              <div class="court-citation">
+                "The primary purpose of detention is to ensure trial attendance, not pre-trial punishment. Liberty cannot be curtailed on mere speculative apprehension." — Satender Kumar Antil v. CBI (2022) 10 SCC 51.
+              </div>
+              <p class="court-para">
+                <strong>B. SATISFACTION OF TRIPLE TEST:</strong> That the Applicant is neither a flight risk, nor is there any possibility of influencing witnesses or tampering with documentary evidence already seized.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Comparison Cards Section -->
+  <div class="section-divider">
+    <div class="section-title">Explore Legal Executive Dark Variants</div>
+    <div class="section-sub">Tailored specifically for advocates, legal counsel, and judicial professionals.</div>
+
+    <div class="theme-grid">
+      <!-- Card 1: Judicial Sapphire -->
+      <div class="theme-card active-card" onclick="selectCardTheme('executive-sapphire', 0)">
+        <div class="card-preview-thumb" style="background: #090b10; border-bottom: 1px solid rgba(59,130,246,0.3);">
+          <div style="display: flex; gap: 8px;">
+            <div style="width: 50%; height: 60px; background: #151924; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); padding: 8px;">
+              <div style="width: 40%; height: 6px; background: #3b82f6; border-radius: 2px; margin-bottom: 6px;"></div>
+              <div style="width: 80%; height: 4px; background: #94a3b8; border-radius: 2px;"></div>
+            </div>
+            <div style="width: 50%; height: 60px; background: #111520; border-radius: 6px; border: 1px solid rgba(59,130,246,0.25); padding: 8px;">
+              <div style="width: 60%; height: 6px; background: #f8fafc; border-radius: 2px; margin-bottom: 6px;"></div>
+              <div style="width: 90%; height: 4px; background: rgba(59,130,246,0.4); border-radius: 2px;"></div>
+            </div>
+          </div>
+          <div style="height: 34px; background: #151924; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); margin-top: auto; display: flex; align-items: center; padding: 0 10px; justify-content: space-between;">
+            <span style="font-size: 10px; color: #3b82f6; font-family: monospace;">JUDICIAL BLUE</span>
+            <span style="font-size: 10px; color: #fff;">Open →</span>
+          </div>
+        </div>
+        <div class="card-details">
+          <div class="card-title">
+            <span>1. Judicial Sapphire</span>
+            <span style="color: #60a5fa; font-size: 12px;">★ Top Recommendation</span>
+          </div>
+          <div class="card-desc">
+            Deep obsidian background with sharp royal sapphire accents. Resembles LexisNexis, Westlaw, and Supreme Court digital portals. Professional, serious, and trustworthy.
+          </div>
+          <div class="card-palette">
+            <span class="palette-circle" style="background: #090b10;"></span>
+            <span class="palette-circle" style="background: #151924;"></span>
+            <span class="palette-circle" style="background: #3b82f6;"></span>
+            <span class="palette-circle" style="background: #f8fafc;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Advocate Monochrome -->
+      <div class="theme-card" onclick="selectCardTheme('executive-platinum', 1)">
+        <div class="card-preview-thumb" style="background: #090a0d; border-bottom: 1px solid rgba(255,255,255,0.25);">
+          <div style="display: flex; gap: 8px;">
+            <div style="width: 50%; height: 60px; background: #141720; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); padding: 8px;">
+              <div style="width: 40%; height: 6px; background: #f8fafc; border-radius: 2px; margin-bottom: 6px;"></div>
+              <div style="width: 80%; height: 4px; background: #94a3b8; border-radius: 2px;"></div>
+            </div>
+            <div style="width: 50%; height: 60px; background: #10121a; border-radius: 6px; border: 1px solid rgba(255,255,255,0.18); padding: 8px;">
+              <div style="width: 60%; height: 6px; background: #f8fafc; border-radius: 2px; margin-bottom: 6px;"></div>
+              <div style="width: 90%; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px;"></div>
+            </div>
+          </div>
+          <div style="height: 34px; background: #141720; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); margin-top: auto; display: flex; align-items: center; padding: 0 10px; justify-content: space-between;">
+            <span style="font-size: 10px; color: #f8fafc; font-family: monospace;">MONOCHROME</span>
+            <span style="font-size: 10px; color: #fff;">Open →</span>
+          </div>
+        </div>
+        <div class="card-details">
+          <div class="card-title">
+            <span>2. Advocate Monochrome (Platinum)</span>
+            <span style="color: #e2e8f0; font-size: 12px;">Court Heritage</span>
+          </div>
+          <div class="card-desc">
+            Directly modeled on the advocate's black gown and crisp white neck-band. Pure sobriety, 100% distraction-free, stark objective precision.
+          </div>
+          <div class="card-palette">
+            <span class="palette-circle" style="background: #090a0d;"></span>
+            <span class="palette-circle" style="background: #141720;"></span>
+            <span class="palette-circle" style="background: #f8fafc;"></span>
+            <span class="palette-circle" style="background: #94a3b8;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Seal Crimson -->
+      <div class="theme-card" onclick="selectCardTheme('executive-crimson', 2)">
+        <div class="card-preview-thumb" style="background: #0b090b; border-bottom: 1px solid rgba(225,29,72,0.3);">
+          <div style="display: flex; gap: 8px;">
+            <div style="width: 50%; height: 60px; background: #181318; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); padding: 8px;">
+              <div style="width: 40%; height: 6px; background: #e11d48; border-radius: 2px; margin-bottom: 6px;"></div>
+              <div style="width: 80%; height: 4px; background: #a8a29e; border-radius: 2px;"></div>
+            </div>
+            <div style="width: 50%; height: 60px; background: #140f14; border-radius: 6px; border: 1px solid rgba(225,29,72,0.22); padding: 8px;">
+              <div style="width: 60%; height: 6px; background: #fafafa; border-radius: 2px; margin-bottom: 6px;"></div>
+              <div style="width: 90%; height: 4px; background: rgba(225,29,72,0.4); border-radius: 2px;"></div>
+            </div>
+          </div>
+          <div style="height: 34px; background: #181318; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); margin-top: auto; display: flex; align-items: center; padding: 0 10px; justify-content: space-between;">
+            <span style="font-size: 10px; color: #fb7185; font-family: monospace;">WAX SEAL</span>
+            <span style="font-size: 10px; color: #fff;">Open →</span>
+          </div>
+        </div>
+        <div class="card-details">
+          <div class="card-title">
+            <span>3. Seal Crimson (Burgundy)</span>
+            <span style="color: #fb7185; font-size: 12px;">Constitutional</span>
+          </div>
+          <div class="card-desc">
+            Deep official seal crimson accents. Resembles constitutional red tape, court seals, and gazette authority. Serious and distinguished.
+          </div>
+          <div class="card-palette">
+            <span class="palette-circle" style="background: #0b090b;"></span>
+            <span class="palette-circle" style="background: #181318;"></span>
+            <span class="palette-circle" style="background: #e11d48;"></span>
+            <span class="palette-circle" style="background: #fafafa;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: Steel Slate -->
+      <div class="theme-card" onclick="selectCardTheme('executive-steel', 3)">
+        <div class="card-preview-thumb" style="background: #080b0f; border-bottom: 1px solid rgba(14,165,233,0.3);">
+          <div style="display: flex; gap: 8px;">
+            <div style="width: 50%; height: 60px; background: #131922; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); padding: 8px;">
+              <div style="width: 40%; height: 6px; background: #0ea5e9; border-radius: 2px; margin-bottom: 6px;"></div>
+              <div style="width: 80%; height: 4px; background: #94a3b8; border-radius: 2px;"></div>
+            </div>
+            <div style="width: 50%; height: 60px; background: #101620; border-radius: 6px; border: 1px solid rgba(14,165,233,0.22); padding: 8px;">
+              <div style="width: 60%; height: 6px; background: #f8fafc; border-radius: 2px; margin-bottom: 6px;"></div>
+              <div style="width: 90%; height: 4px; background: rgba(14,165,233,0.4); border-radius: 2px;"></div>
+            </div>
+          </div>
+          <div style="height: 34px; background: #131922; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); margin-top: auto; display: flex; align-items: center; padding: 0 10px; justify-content: space-between;">
+            <span style="font-size: 10px; color: #38bdf8; font-family: monospace;">CORPORATE</span>
+            <span style="font-size: 10px; color: #fff;">Open →</span>
+          </div>
+        </div>
+        <div class="card-details">
+          <div class="card-title">
+            <span>4. Steel Slate (Corporate Counsel)</span>
+            <span style="color: #38bdf8; font-size: 12px;">Analytical</span>
+          </div>
+          <div class="card-desc">
+            Clean, cold cyan-slate blue. Ideal for commercial corporate litigation, contract review, and intellectual property practice.
+          </div>
+          <div class="card-palette">
+            <span class="palette-circle" style="background: #080b0f;"></span>
+            <span class="palette-circle" style="background: #131922;"></span>
+            <span class="palette-circle" style="background: #0ea5e9;"></span>
+            <span class="palette-circle" style="background: #f1f5f9;"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align: center; padding: 40px 20px; color: #64748b; font-size: 13px;">
+    Soli Legal AI · Ready to apply your preferred legal palette to the live application.
+  </div>
+
+  <!-- Interactive Scripts -->
+  <script>
+    const themeMetadata = {
+      'executive-sapphire': {
+        title: "🏛️ Judicial Sapphire — Supreme Court Blue & Obsidian",
+        desc: "Authoritative, institutional, and solemn. High-contrast sapphire blue conveys precision and constitutional authority.",
+        logo: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
+        swatches: [
+          { label: "Canvas: #090B10", color: "#090b10" },
+          { label: "Card: #151924", color: "#151924" },
+          { label: "Accent: #3B82F6", color: "#3b82f6" },
+          { label: "Text: #F8FAFC", color: "#f8fafc" }
+        ]
+      },
+      'executive-platinum': {
+        title: "⚖️ Advocate Monochrome — Black & White Court Heritage",
+        desc: "Directly inspired by the advocate's black gown and white neck-band. Pure sobriety, 100% distraction-free, stark objective precision.",
+        logo: "linear-gradient(135deg, #e2e8f0, #94a3b8)",
+        swatches: [
+          { label: "Canvas: #090A0D", color: "#090a0d" },
+          { label: "Card: #141720", color: "#141720" },
+          { label: "Accent: #F8FAFC", color: "#f8fafc" },
+          { label: "Text: #F8FAFC", color: "#f8fafc" }
+        ]
+      },
+      'executive-crimson': {
+        title: "📜 Seal Crimson — Constitutional Seal & Authority",
+        desc: "Deep official seal crimson accents. Resembles constitutional red tape, court seals, and official gazette authority.",
+        logo: "linear-gradient(135deg, #e11d48, #9f1239)",
+        swatches: [
+          { label: "Canvas: #0B090B", color: "#0b090b" },
+          { label: "Card: #181318", color: "#181318" },
+          { label: "Accent: #E11D48", color: "#e11d48" },
+          { label: "Text: #FAFAFA", color: "#fafafa" }
+        ]
+      },
+      'executive-steel': {
+        title: "🧊 Steel Slate — Corporate & Commercial Counsel",
+        desc: "Clean, cold cyan-slate blue. Ideal for commercial corporate litigation, contract review, and intellectual property practice.",
+        logo: "linear-gradient(135deg, #0ea5e9, #0369a1)",
+        swatches: [
+          { label: "Canvas: #080B0F", color: "#080b0f" },
+          { label: "Card: #131922", color: "#131922" },
+          { label: "Accent: #0EA5E9", color: "#0ea5e9" },
+          { label: "Text: #F1F5F9", color: "#f1f5f9" }
+        ]
+      },
+      'oxford': {
+        title: "📜 Oxford Legal — Warm Parchment & Royal Navy (Light)",
+        desc: "Warm linen parchment, pure white surfaces, and traditional Oxford Navy. High readability for long court briefs and statutory reading.",
+        logo: "linear-gradient(135deg, #1e3a8a, #172554)",
+        swatches: [
+          { label: "Canvas: #F8F6F0", color: "#f8f6f0" },
+          { label: "Card: #FFFFFF", color: "#ffffff" },
+          { label: "Accent: #1E3A8A", color: "#1e3a8a" },
+          { label: "Text: #1C1917", color: "#1c1917" }
+        ]
+      }
+    };
+
+    function switchTheme(themeKey, btnElem) {
+      const frame = document.getElementById('live-frame');
+      frame.className = `app-frame theme-${themeKey}`;
+
+      // Update Top Buttons
+      document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+      if (btnElem) btnElem.classList.add('active');
+
+      // Update Banner Info
+      const meta = themeMetadata[themeKey];
+      if (meta) {
+        document.getElementById('banner-title').textContent = meta.title;
+        document.getElementById('banner-desc').textContent = meta.desc;
+        document.getElementById('main-logo').style.background = meta.logo;
+
+        // Update Swatches
+        const swatchesContainer = document.getElementById('swatches-container');
+        swatchesContainer.innerHTML = meta.swatches.map(s => `
+          <div class="swatch-group">
+            <span class="swatch-color" style="background: ${s.color};"></span>
+            <span>${s.label}</span>
+          </div>
+        `).join('');
+      }
+
+      // Update Active Card in Grid
+      const cards = document.querySelectorAll('.theme-card');
+      cards.forEach(card => card.classList.remove('active-card'));
+      const idx = ['executive-sapphire', 'executive-platinum', 'executive-crimson', 'executive-steel', 'oxford'].indexOf(themeKey);
+      if (cards[idx]) cards[idx].classList.add('active-card');
+    }
+
+    function selectCardTheme(themeKey, cardIdx) {
+      const buttons = document.querySelectorAll('.theme-btn');
+      if (buttons[cardIdx]) {
+        switchTheme(themeKey, buttons[cardIdx]);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Splitter Simulation Drag
+    const splitter = document.getElementById('splitter');
+    const artifactPane = document.getElementById('artifact-pane');
+    let isDragging = false;
+
+    splitter.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const frameRect = document.getElementById('live-frame').getBoundingClientRect();
+      const newWidth = frameRect.right - e.clientX;
+      if (newWidth >= 300 && newWidth <= frameRect.width - 280) {
+        artifactPane.style.width = `${newWidth}px`;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        document.body.style.cursor = 'default';
+        document.body.style.userSelect = 'auto';
+      }
+    });
+  </script>
+</body>
+</html>

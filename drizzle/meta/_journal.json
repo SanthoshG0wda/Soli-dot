@@ -1,0 +1,62 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789923282796,
+      "tag": "0000_init",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789925547446,
+      "tag": "0001_familiar_epoch",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789973040201,
+      "tag": "0002_wooden_mandroid",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789973754781,
+      "tag": "0003_chemical_multiple_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789977167409,
+      "tag": "0004_past_leopardon",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790004755091,
+      "tag": "0005_woozy_dorian_gray",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791781690015,
+      "tag": "0006_naive_the_anarchist",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791787340449,
+      "tag": "0007_sloppy_roughhouse",
+      "breakpoints": true
+    }
+  ]
+}

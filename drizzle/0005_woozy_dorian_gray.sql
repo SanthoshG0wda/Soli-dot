@@ -1,0 +1,2 @@
+ALTER TABLE "documents" ADD COLUMN "collection" text;--> statement-breakpoint
+ALTER TABLE "documents" ADD CONSTRAINT "documents_collection_check" CHECK (("documents"."collection" IS NULL OR "documents"."collection" IN ('constitutional', 'statutes', 'case-law')));

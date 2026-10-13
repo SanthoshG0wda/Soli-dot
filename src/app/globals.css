@@ -1,0 +1,289 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/*
+ * Soli — Ivory Brief theme.
+ * Warm paper surfaces: background #faf7f1 → card #fffdf8 → popover #f5efe3.
+ * Brass brand #8c5a2b. Serif headings (Tiempos/Newsreader/Charter/Georgia),
+ * Geist Sans body, JetBrains Mono chrome.
+ */
+
+:root {
+  --background: #faf7f1;
+  --card: #fffdf8;
+  --popover: #f5efe3;
+  --foreground: #1a1611;
+
+  --brand: #8c5a2b;
+  --brand-hover: #7a4e25;
+  --brand-active: #6b421d;
+  --brand-readable: #6b421d;
+
+  --highlight: #efe0bd;
+  --highlight-foreground: #1a1611;
+
+  --border: #e5d9c1;
+  --ring: #c9a86a;
+
+  --destructive: oklch(0.577 0.215 27.3);
+  --success: oklch(0.546 0.16 155.8);
+  --warning: oklch(0.666 0.16 75);
+
+  color-scheme: light;
+}
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-serif: var(--font-claude-serif), "Tiempos Headline", "Newsreader", "Charter", "Iowan Old Style", Georgia, Cambria, serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --leading-tight: 1.1;
+  --leading-snug: 1.2;
+  --tracking-default: -0.011em;
+
+  --container-page: 1240px;
+  --container-prose: 720px;
+  --container-narrow: 520px;
+  --container-tight: 380px;
+}
+
+@theme inline {
+  --radius-xs: 4px;
+  --shadow-elevated: 0 24px 60px -22px rgba(0, 0, 0, 0.12), 0 6px 18px -10px rgba(0, 0, 0, 0.06);
+
+  --color-background: var(--background);
+  --color-card: var(--card);
+  --color-popover: var(--popover);
+  --color-foreground: var(--foreground);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-active: var(--brand-active);
+  --color-brand-readable: var(--brand-readable);
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    background-image: radial-gradient(rgba(90, 64, 28, 0.05) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--brand) 28%, transparent);
+  }
+}
+
+@layer components {
+  /* Typography tokens: size + weight + leading + tracking bundled together. */
+  .text-display { @apply font-serif text-4xl leading-tight font-normal tracking-tight md:text-5xl lg:text-[54px]; }
+  .text-h1 { @apply font-serif text-2xl leading-snug font-normal tracking-tight md:text-3xl; }
+  .text-h2 { @apply font-serif text-xl leading-snug font-medium tracking-tight; }
+  .text-h3 { @apply font-serif text-lg leading-snug font-medium; }
+  .text-body-lg { @apply font-sans text-lg leading-[1.7] tracking-default; }
+  .text-body { @apply font-sans text-[15.5px] leading-[1.68] tracking-default; }
+  .text-body-sm { @apply font-sans text-sm leading-[1.6] tracking-default; }
+  .text-caption { @apply font-sans text-xs leading-normal tracking-default; }
+  .text-mono-md { @apply font-mono text-[13px] leading-relaxed; }
+  .text-mono-sm { @apply font-mono text-[11px] leading-snug; }
+  .text-mono-xs { @apply font-mono text-[10px] leading-snug; }
+}
+
+/* ── Shared app components ─────────────────────────────────────────────── */
+
+/* The recurring category label: mono, uppercase, wide tracking. */
+@utility eyebrow {
+  @apply font-mono text-[11px] leading-snug tracking-wider text-foreground/50 uppercase;
+}
+
+@utility btn {
+  @apply inline-flex h-9 items-center justify-center gap-2 rounded-md px-3.5 font-sans text-[14px] font-normal tracking-default whitespace-nowrap transition-[opacity,background-color,border-color,color] duration-150 select-none disabled:pointer-events-none disabled:opacity-40;
+}
+@utility btn-primary {
+  @apply btn bg-foreground text-card hover:opacity-85 active:opacity-75;
+}
+@utility btn-secondary {
+  @apply btn border border-[#5a4028]/15 bg-card text-foreground hover:border-[#5a4028]/30 hover:bg-popover;
+}
+@utility btn-brand {
+  @apply btn bg-brand text-card hover:bg-brand-hover active:bg-brand-active;
+}
+@utility btn-quiet {
+  @apply btn h-8 px-2.5 text-[13px] text-foreground/60 hover:bg-[#5a4028]/[0.06] hover:text-foreground;
+}
+
+@utility field {
+  @apply h-9 w-full rounded-md border border-[#5a4028]/15 bg-card px-3 font-sans text-[14px] tracking-default text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-foreground/35 focus:border-[#8c5a2b]/50 focus:shadow-[0_0_0_3px_rgba(140,90,43,0.16)];
+}
+
+@utility surface {
+  @apply rounded-xl border border-[#5a4028]/10 bg-card shadow-[0_1px_2px_rgba(90,64,28,0.05)];
+}
+
+/* Hairline page frame, warmtd for paper. */
+@utility rails {
+  @apply border-x border-[#5a4028]/10;
+}
+
+/* Dotted field used behind 3D stages. */
+@utility dot-grid {
+  background-image: radial-gradient(rgba(26, 22, 17, 0.1) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+@keyframes dot-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, currentColor 45%, transparent); }
+  100% { box-shadow: 0 0 0 5px transparent; }
+}
+
+@keyframes auth-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-auth-rise {
+  animation: auth-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-auth-rise {
+    animation: none;
+  }
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg, rgba(26, 22, 17, 0.4) 20%, rgba(26, 22, 17, 0.95) 50%, rgba(26, 22, 17, 0.4) 80%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2.2s linear infinite;
+}
+
+.live-dot {
+  animation: pulse-ring 1.4s ease-out infinite;
+}
+
+/* Markdown replies, tuned to literary brief typography */
+.dot-prose {
+  @apply prose max-w-none font-sans text-[15.5px] leading-[1.72] tracking-default text-foreground/90;
+  --tw-prose-headings: var(--foreground);
+  --tw-prose-bold: var(--foreground);
+  --tw-prose-links: var(--brand-readable);
+  --tw-prose-code: var(--foreground);
+  --tw-prose-th-borders: rgba(90, 64, 28, 0.2);
+  --tw-prose-td-borders: rgba(90, 64, 28, 0.12);
+  --tw-prose-bullets: rgba(90, 64, 28, 0.45);
+  --tw-prose-counters: rgba(90, 64, 28, 0.6);
+}
+.dot-prose > :first-child {
+  margin-top: 0;
+}
+.dot-prose > :last-child {
+  margin-bottom: 0;
+}
+.dot-prose :where(h1, h2, h3, h4) {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+}
+.dot-prose :where(h1) {
+  font-size: 1.55rem;
+  line-height: 1.25;
+  margin-top: 1.75em;
+  margin-bottom: 0.6em;
+}
+.dot-prose :where(h2) {
+  font-size: 1.3rem;
+  line-height: 1.3;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+.dot-prose :where(h3) {
+  font-size: 1.15rem;
+  line-height: 1.35;
+  margin-top: 1.25em;
+  margin-bottom: 0.4em;
+}
+.dot-prose :where(p) {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+.dot-prose :where(strong) {
+  font-weight: 600;
+  color: var(--foreground);
+}
+.dot-prose :where(blockquote) {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.02em;
+  border-left-width: 3px;
+  border-left-color: rgba(140, 90, 43, 0.4);
+  padding-left: 1.15rem;
+  color: rgba(26, 22, 17, 0.85);
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+.dot-prose :where(code):not(:where(pre code)) {
+  @apply rounded-xs bg-[#5a4028]/[0.08] px-1.5 py-0.5 font-mono text-[13px] font-normal;
+}
+.dot-prose :where(code):not(:where(pre code))::before,
+.dot-prose :where(code):not(:where(pre code))::after {
+  content: none;
+}
+.dot-prose :where(pre) {
+  @apply rounded-lg border border-[#5a4028]/10 bg-popover font-mono text-[13px] text-foreground;
+  padding: 1rem 1.15rem;
+  line-height: 1.6;
+}
+.dot-prose :where(table) {
+  @apply text-[14px];
+}
+.dot-prose :where(th) {
+  @apply font-mono text-[11px] tracking-wider text-foreground/50 uppercase;
+}
+.dot-prose :where(a) {
+  @apply no-underline hover:underline;
+}
+
+/* Court Paper typography (Statutory petitions, citations, formal court drafts) */
+.court-paper-prose {
+  font-family: var(--font-serif);
+  font-size: 14.5px;
+  line-height: 1.85;
+  color: #1a1a1a;
+}
+.court-paper-prose :where(h1, h2, h3, h4) {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: -0.01em;
+  margin-top: 1.5em;
+  margin-bottom: 0.8em;
+}
+.court-paper-prose :where(p) {
+  margin-bottom: 1em;
+  text-align: justify;
+}
+.court-paper-prose :where(strong) {
+  font-weight: 600;
+}
