@@ -1,7 +1,7 @@
 import "server-only";
 import path from "node:path";
 import fs from "node:fs";
-import { chromium, type BrowserContext, type CDPSession, type Page } from "playwright";
+import type { BrowserContext, CDPSession, Page } from "playwright";
 import { DATA_DIR } from "../db";
 import { emit } from "../bus";
 import { assertDotId } from "../validate";
@@ -110,23 +110,33 @@ async function freeProfile(dir: string) {
   if (alive()) process.kill(pid, "SIGKILL");
 }
 
+// Playwright is imported lazily so deployments without a local browser
+// (e.g. Vercel serverless, which also lacks the native package files) can
+// boot and serve everything else. Only driving a dot's local browser loads it.
+let chromiumPromise: Promise<typeof import("playwright").chromium> | null = null;
+function chromium() {
+  return (chromiumPromise ??= import("playwright").then((m) => m.chromium));
+}
+
 async function launch(dotId: string): Promise<Session> {
   await freeProfile(profileDir(dotId));
   const open = () =>
-    chromium.launchPersistentContext(profileDir(dotId), {
-      channel,
-      headless: true,
-      timeout: 30_000,
-      viewport: SCREEN,
-      deviceScaleFactor: 1,
-      locale: "en-US",
-      timezoneId: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      // Keep Chrome's sandbox on (Playwright turns it off by default, which shows an "unsupported flag" warning).
-      chromiumSandbox: true,
-      // No "Chrome is being controlled by automated software" flag, and no navigator.webdriver.
-      ignoreDefaultArgs: ["--enable-automation", "--unsafely-disable-devtools-self-xss-warnings"],
-      args: ["--disable-blink-features=AutomationControlled", ...(chromeUA ? [`--user-agent=${chromeUA}`] : [])],
-    });
+    chromium().then((c) =>
+      c.launchPersistentContext(profileDir(dotId), {
+        channel,
+        headless: true,
+        timeout: 30_000,
+        viewport: SCREEN,
+        deviceScaleFactor: 1,
+        locale: "en-US",
+        timezoneId: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        // Keep Chrome's sandbox on (Playwright turns it off by default, which shows an "unsupported flag" warning).
+        chromiumSandbox: true,
+        // No "Chrome is being controlled by automated software" flag, and no navigator.webdriver.
+        ignoreDefaultArgs: ["--enable-automation", "--unsafely-disable-devtools-self-xss-warnings"],
+        args: ["--disable-blink-features=AutomationControlled", ...(chromeUA ? [`--user-agent=${chromeUA}`] : [])],
+      }),
+    );
   let context: BrowserContext;
   try {
     context = await open();

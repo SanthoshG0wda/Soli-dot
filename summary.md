@@ -1,12 +1,12 @@
-# Soli — Legal AI Platform: Development Summary
+# Legal AI Platform: Development Summary
 
-This document summarizes the features, architecture, user interface enhancements, legal document engines, and multi-agent personas implemented in the **Soli** platform.
+This document summarizes the features, architecture, user interface enhancements, legal document engines, and multi-agent personas implemented in the platform.
 
 ---
 
 ## 1. Product Vision & Architecture Overview
 
-**Soli** is an AI Legal Operating System and SaaS platform designed specifically for Indian advocates, law firms, corporate legal counsels, and chamber practices.
+The platform is an AI Legal Operating System designed specifically for Indian advocates, law firms, corporate legal counsels, and chamber practices.
 
 * **Frontend & Full-Stack Core:** Next.js 16 (App Router), React 19, TypeScript, Vanilla CSS & Tailwind CSS.
 * **Database & Persistence:** PostgreSQL with Drizzle ORM (auth, users, messages, artifacts, files) + SQLite for localized agent state.
@@ -55,7 +55,7 @@ The platform features 4 specialized litigation personas configured in a central 
 
 ```
                                  ┌───────────────────────────────────┐
-                                 │           SOLI PLATFORM           │
+                                 │         LEGAL AI PLATFORM         │
                                  └─────────────────┬─────────────────┘
                                                    │
          ┌───────────────────┬─────────────────────┴───────────────────┬───────────────────┐
