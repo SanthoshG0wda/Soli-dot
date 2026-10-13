@@ -31,9 +31,13 @@ function masterKey(): Buffer {
   }
   if (!hex) {
     const file = path.join(DATA_DIR, "vault.key");
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    if (!fs.existsSync(file)) fs.writeFileSync(file, crypto.randomBytes(32).toString("hex"), { mode: 0o600 });
-    hex = fs.readFileSync(file, "utf8").trim();
+    try {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+      if (!fs.existsSync(file)) fs.writeFileSync(file, crypto.randomBytes(32).toString("hex"), { mode: 0o600 });
+      hex = fs.readFileSync(file, "utf8").trim();
+    } catch {
+      hex = crypto.randomBytes(32).toString("hex");
+    }
   }
   const key = Buffer.from(hex, "hex");
   if (key.length !== 32) {

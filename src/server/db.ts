@@ -2,9 +2,40 @@ import "server-only";
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 
-// The desktop app points this at its Application Support folder; in development it's .data/ in the project.
-export const DATA_DIR = process.env.DOTS_DATA_DIR || path.join(/* turbopackIgnore: true */ process.cwd(), ".data");
+// In development it's .data/ in the project root; on Vercel/AWS Lambda /var/task is read-only, so use /tmp/.data
+function resolveDataDir(): string {
+  if (process.env.DOTS_DATA_DIR) {
+    return process.env.DOTS_DATA_DIR;
+  }
+  const isServerless =
+    Boolean(process.env.VERCEL) ||
+    Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME) ||
+    Boolean(process.env.LAMBDA_TASK_ROOT);
+
+  if (isServerless) {
+    const tmpData = path.join(os.tmpdir(), ".data");
+    try {
+      fs.mkdirSync(tmpData, { recursive: true });
+    } catch {}
+    return tmpData;
+  }
+
+  try {
+    const local = path.join(process.cwd(), ".data");
+    fs.mkdirSync(local, { recursive: true });
+    return local;
+  } catch {
+    const fallback = path.join(os.tmpdir(), ".data");
+    try {
+      fs.mkdirSync(fallback, { recursive: true });
+    } catch {}
+    return fallback;
+  }
+}
+
+export const DATA_DIR = resolveDataDir();
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS dots (
@@ -56,9 +87,13 @@ const g = globalThis as unknown as { __dotsDb?: DatabaseSync; __dotsDbSchemaVers
 
 export function db(): DatabaseSync {
   if (!g.__dotsDb) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+    try {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    } catch {}
     const conn = new DatabaseSync(path.join(DATA_DIR, "dots.db"));
-    conn.exec("PRAGMA journal_mode = WAL;");
+    try {
+      conn.exec("PRAGMA journal_mode = WAL;");
+    } catch {}
     conn.exec(SCHEMA);
     g.__dotsDb = conn;
   }

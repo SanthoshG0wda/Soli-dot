@@ -31,7 +31,9 @@ export function guessMime(name: string): string {
 }
 
 function save(dotId: string, name: string, mime: string, data: Buffer, source: "user" | "dot", boxPath: string | null, userId: string): Attachment {
-  fs.mkdirSync(DIR, { recursive: true });
+  try {
+    fs.mkdirSync(DIR, { recursive: true });
+  } catch {}
   const fileId = id("file");
   fs.writeFileSync(path.join(DIR, fileId), data);
   db()
