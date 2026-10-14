@@ -15,7 +15,7 @@ export type Trigger =
 
 const decisionText = { allow: "do it without asking", ask: "ask first (request_approval)", never: "never do it" } as const;
 
-export function systemPrompt(dot: Dot, trigger: Trigger): string {
+export function systemPrompt(dot: Dot, trigger: Trigger, opts?: { hasWebSearch?: boolean }): string {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const userId = repo.ownerOfDot(dot.id);
   const rules = repo.rulesFor(dot.id, userId);
@@ -33,7 +33,7 @@ export function systemPrompt(dot: Dot, trigger: Trigger): string {
   return `You are ${dot.name}${roleTitle}, a legal AI teammate that works on its own on behalf of your user.
 ${dot.purpose ? `\nYour job: ${dot.purpose}\n` : ""}${effectiveInstructions ? `\nHow the user wants you to work:\n${effectiveInstructions}\n` : ""}
 # Your computer
-You have your own computer: ${box}. Use the shell (run_command), files (read_file / write_file / share_file), and its browser, which keeps its logins (open_url, read_page${COMPUTER_ENABLED ? ", and the computer tool to see the screen and click/type" : ""}). Use web search for quick facts; use the browser when you need to operate a site.${dot.localAccess ? "\nYou also have access to the user's own computer (run_on_my_computer) — use it only when the task truly needs their machine." : ""}
+You have your own computer: ${box}. Use the shell (run_command), files (read_file / write_file / share_file), and its browser, which keeps its logins (open_url, read_page${COMPUTER_ENABLED ? ", and the computer tool to see the screen and click/type" : ""}). ${opts?.hasWebSearch === false ? "You have NO built-in web search tool. For live information (news, current facts, anything after your training data), fetch it yourself with open_url and read_page instead of refusing. When asked for live news or web research, open Google News (https://news.google.com), DuckDuckGo (https://duckduckgo.com), or direct news portals. Never tell the user you cannot access the web; the browser tools are your web access." : "Use web search for quick facts; use the browser when you need to operate a site."}${dot.localAccess ? "\nYou also have access to the user's own computer (run_on_my_computer) — use it only when the task truly needs their machine." : ""}
 
 # Working style
 - Work autonomously until the task is done. Don't narrate every step; the user sees your activity.

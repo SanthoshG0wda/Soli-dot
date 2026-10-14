@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Archive, ArchiveRestore, ChevronRight, Ellipsis, FolderInput, LayoutGrid, LogOut, PanelLeftClose, Pencil, Pin, PinOff, Plus, Search, Settings, Shield, SquarePen, Trash2, Upload, X } from "lucide-react";
+import { Archive, ArchiveRestore, ChevronRight, Ellipsis, FolderInput, Globe, LayoutGrid, LogOut, PanelLeftClose, Pencil, Pin, PinOff, Plus, Search, Settings, Shield, SquarePen, Trash2, Upload, X } from "lucide-react";
 import { deleteConversation, moveConversation, renameConversation } from "@/app/actions";
 import { LogoutButton } from "@/components/auth/logout-button";
-import { markRead, useStore } from "@/lib/store";
+import { deleteConversationLocally, markRead, moveConversationLocally, renameConversationLocally, useStore } from "@/lib/store";
 import { setSidebarCollapsed, setSidebarOpen, toggleSidebar, useSidebarCollapsed, useSidebarOpen } from "@/lib/ui";
 import { statusDot, timeAgo } from "@/lib/status";
 import DotOrb from "./DotOrb";
@@ -115,7 +115,14 @@ export default function Sidebar() {
       })
       .catch(() => {});
   }, []);
-  const activeDot = pathname.match(/^\/dots\/([^/]+)/)?.[1];
+
+  const dotHref = (dotId: string, convId?: string): string => {
+    const canonicalId = dotId.startsWith("dot_") ? dotId.replace(/^dot_/, "vakil_") : dotId;
+    return convId ? `/vakil/${canonicalId}?c=${convId}` : `/vakil/${canonicalId}`;
+  };
+
+  const rawActive = pathname.match(/^\/(?:dots|vakil)\/([^/]+)/)?.[1];
+  const activeDot = rawActive?.startsWith("dot_") ? rawActive.replace(/^dot_/, "vakil_") : rawActive;
   const drawerOpen = useSidebarOpen();
   const collapsed = useSidebarCollapsed();
 
@@ -160,16 +167,16 @@ export default function Sidebar() {
 
   const remove = (c: Conversation) =>
     start(async () => {
-      // Never let a failed delete crash the layout: missing/stale rows are
-      // already gone, which is the desired end state.
+      // Optimistically remove from local store so UI updates immediately without refreshing:
+      deleteConversationLocally(c.id);
+      setConfirming(null);
+      setMenuOpenId(null);
+      if (c.id === activeConv) router.push(dotHref(c.dotId));
       try {
         await deleteConversation(c.id);
       } catch {
         /* already deleted elsewhere — just clear the confirm row */
       }
-      setConfirming(null);
-      setMenuOpenId(null);
-      if (c.id === activeConv) router.push(`/dots/${c.dotId}`);
     });
 
   const saveRename = (c: Conversation) =>
@@ -177,6 +184,7 @@ export default function Sidebar() {
       const title = draft.trim().slice(0, 80);
       setRenamingId(null);
       if (title && title !== c.title) {
+        renameConversationLocally(c.id, title);
         try {
           await renameConversation(c.id, title);
         } catch {
@@ -186,7 +194,7 @@ export default function Sidebar() {
     });
 
   const share = async (c: Conversation) => {
-    const url = `${window.location.origin}/dots/${c.dotId}?c=${c.id}`;
+    const url = `${window.location.origin}${dotHref(c.dotId, c.id)}`;
     try {
       await navigator.clipboard.writeText(url);
     } catch {
@@ -207,12 +215,13 @@ export default function Sidebar() {
       setMenuOpenId(null);
       setMoveOpen(false);
       if (targetDotId === c.dotId) return;
+      moveConversationLocally(c.id, targetDotId);
       try {
         await moveConversation(c.id, targetDotId);
       } catch {
         /* stale row — ignore */
       }
-      if (c.id === activeConv) router.push(`/dots/${targetDotId}?c=${c.id}`);
+      if (c.id === activeConv) router.push(dotHref(targetDotId, c.id));
     });
 
   const closeSearch = () => (setSearching(false), setQ(""));
@@ -220,7 +229,7 @@ export default function Sidebar() {
   return (
     <>
       {/* Phones / narrow windows: the sidebar is a drawer over a dimmed backdrop */}
-      {drawerOpen && <div className="fixed inset-0 z-40 bg-black/25 md:hidden" onClick={() => setSidebarOpen(false)} />}
+      {drawerOpen && <div className="fixed inset-0 z-40 bg-black/25 backdrop-blur-[2px] animate-page-rise md:hidden" onClick={() => setSidebarOpen(false)} />}
       <aside
         // Picking anything in the drawer closes it on mobile.
         onClickCapture={(e) => {
@@ -230,7 +239,7 @@ export default function Sidebar() {
             }
           }
         }}
-        className={`fixed inset-y-0 left-0 z-50 flex h-full flex-col bg-background shadow-2xl transition-[width,min-width,max-width,transform,opacity] duration-300 ease-[cubic-bezier(0.2,0,0,1)] md:static md:z-auto md:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-full flex-col bg-background/95 shadow-2xl backdrop-blur-xl transition-[width,min-width,max-width,transform,opacity] duration-300 ease-[cubic-bezier(0.2,0,0,1)] md:static md:z-auto md:bg-background md:shadow-none md:backdrop-blur-none ${
           drawerOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         } ${
           collapsed
@@ -246,7 +255,7 @@ export default function Sidebar() {
             </Link>
             <button
               type="button"
-              className={`flex size-8 items-center justify-center rounded-lg text-foreground/60 transition-colors hover:bg-black/[0.05] hover:text-foreground ${searching ? "bg-card text-foreground" : ""}`}
+              className={`motion-card flex size-8 items-center justify-center rounded-lg text-foreground/60 transition-colors hover:bg-black/[0.05] hover:text-foreground ${searching ? "bg-card text-foreground shadow-sm" : ""}`}
               onClick={() => (searching ? closeSearch() : setSearching(true))}
               title="Search chats"
               aria-label="Search chats"
@@ -255,7 +264,7 @@ export default function Sidebar() {
             </button>
             <Link
               href="/"
-              className="flex size-8 items-center justify-center rounded-lg text-foreground/60 transition-colors hover:bg-black/[0.05] hover:text-foreground"
+              className="motion-card flex size-8 items-center justify-center rounded-lg text-foreground/60 transition-colors hover:bg-black/[0.05] hover:text-foreground"
               title="New chat"
               aria-label="New chat"
             >
@@ -263,7 +272,7 @@ export default function Sidebar() {
             </Link>
             <button
               type="button"
-              className="hidden size-8 items-center justify-center rounded-lg text-foreground/60 transition-colors hover:bg-black/[0.05] hover:text-foreground md:flex"
+              className="motion-card hidden size-8 items-center justify-center rounded-lg text-foreground/60 transition-colors hover:bg-black/[0.05] hover:text-foreground md:flex"
               onClick={() => setSidebarCollapsed(true)}
               title="Close sidebar (Ctrl+B)"
               aria-label="Close sidebar"
@@ -273,12 +282,12 @@ export default function Sidebar() {
           </div>
 
           {searching && (
-            <div className="relative mx-3 mb-2">
+            <div className="relative mx-3 mb-2 animate-page-rise">
               <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-foreground/35" strokeWidth={1.75} />
               <input
                 autoFocus
                 className="field h-9 bg-popover pr-8 pl-8"
-                aria-label="Search chats and dots" placeholder="Search chats and dots"
+                aria-label="Search chats and counsel" placeholder="Search chats and counsel"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => e.key === "Escape" && closeSearch()}
@@ -292,13 +301,13 @@ export default function Sidebar() {
           {/* Your dots: a horizontal row of characters */}
           {!q && (
             <div className="shrink-0 pb-1">
-              <div className="flex gap-0.5 overflow-x-auto px-2.5 pb-1 [scrollbar-width:none]">
+              <div className="motion-stagger flex gap-0.5 overflow-x-auto px-2.5 pb-1 [scrollbar-width:none]">
                 {dots.map((d) => (
                   <Link
                     key={d.id}
-                    href={`/dots/${d.id}`}
+                    href={dotHref(d.id)}
                     onClick={() => markRead(d.id)}
-                    className={`flex w-[54px] shrink-0 flex-col items-center gap-1 rounded-lg py-1.5 transition-colors ${activeDot === d.id ? "bg-black/[0.05]" : "hover:bg-black/[0.03]"}`}
+                    className={`motion-card flex w-[54px] shrink-0 flex-col items-center gap-1 rounded-lg py-1.5 transition-colors ${activeDot === d.id || activeDot === d.id.replace(/^dot_/, "vakil_") ? "bg-black/[0.05] shadow-sm" : "hover:bg-black/[0.03]"}`}
                     title={`${d.name}${d.purpose ? ` · ${d.purpose}` : ""}`}
                   >
                     <span className="relative">
@@ -308,7 +317,7 @@ export default function Sidebar() {
                     <span className="w-full truncate text-center text-[11px] text-foreground/70">{d.name}</span>
                   </Link>
                 ))}
-                <Link href="/new" className="flex w-[54px] shrink-0 flex-col items-center gap-1 rounded-lg py-1.5 text-foreground/45 hover:bg-black/[0.03] hover:text-foreground" title="New dot">
+                <Link href="/new" className="motion-card flex w-[54px] shrink-0 flex-col items-center gap-1 rounded-lg py-1.5 text-foreground/45 hover:bg-black/[0.03] hover:text-foreground" title="New counsel">
                   <span className="flex size-10 items-center justify-center rounded-full border border-dashed border-black/20">
                     <Plus className="size-4" strokeWidth={1.75} />
                   </span>
@@ -344,8 +353,8 @@ export default function Sidebar() {
               const menuOpen = menuOpenId === c.id;
               const renaming = renamingId === c.id;
               return (
-                <div key={c.id} className={`group relative flex items-center rounded-xl transition-colors ${c.id === activeConv ? "bg-card shadow-2xs" : "hover:bg-black/[0.03]"}`}>
-                  <Link href={`/dots/${d.id}?c=${c.id}`} onClick={() => markRead(d.id)} className="flex min-w-0 flex-1 items-center gap-3 px-2.5 py-2.5">
+              <div key={c.id} className={`motion-card group relative flex items-center rounded-xl transition-colors ${c.id === activeConv ? "bg-card shadow-sm ring-1 ring-black/[0.04]" : "hover:bg-black/[0.03]"}`}>
+                  <Link href={dotHref(d.id, c.id)} onClick={() => markRead(d.id)} className="flex min-w-0 flex-1 items-center gap-3 px-2.5 py-2.5">
                     <DotOrb look={d.look} status={d.status} size={42} />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline gap-2">
@@ -389,7 +398,7 @@ export default function Sidebar() {
                     <Ellipsis className="size-4" strokeWidth={1.75} />
                   </button>
                   {menuOpen && (
-                    <div ref={menuRef} data-conv-menu className="absolute top-9 right-1 z-50 w-52 overflow-hidden rounded-xl border border-white/10 bg-[#212121] py-1.5 text-[#ececec] shadow-[0_16px_48px_-8px_rgba(0,0,0,0.5)]">
+                    <div ref={menuRef} data-conv-menu className="absolute top-9 right-1 z-50 w-52 overflow-hidden rounded-xl border border-white/10 bg-[#212121] py-1.5 text-[#ececec] shadow-[0_16px_48px_-8px_rgba(0,0,0,0.5)] animate-page-rise">
                       <MenuItem
                         icon={<Pencil className="size-4" strokeWidth={1.75} />}
                         label="Rename"
@@ -421,7 +430,7 @@ export default function Sidebar() {
                       <div className="relative">
                         <MenuItem
                           icon={<FolderInput className="size-4" strokeWidth={1.75} />}
-                          label="Move to dot"
+                          label="Move to counsel"
                           trailing={<ChevronRight className="size-3.5 opacity-60" strokeWidth={2} />}
                           onClick={() => setMoveOpen((v) => !v)}
                         />
@@ -441,7 +450,7 @@ export default function Sidebar() {
                                 </button>
                               ))}
                             {dots.filter((x) => x.id !== c.dotId).length === 0 && (
-                              <p className="px-4 py-2 text-[12px] text-white/50">Only one dot — create another to move chats.</p>
+                              <p className="px-4 py-2 text-[12px] text-white/50">Only one counsel — create another to move chats.</p>
                             )}
                           </div>
                         )}
@@ -453,7 +462,7 @@ export default function Sidebar() {
             })}
             {loaded && !recent.length && (
               <p className="px-3 py-6 text-center text-caption text-foreground/45">
-                {q ? "No chats match." : dots.length ? "No chats yet. Pick a dot above to start one." : "Create your first dot to start chatting."}
+                {q ? "No chats match." : dots.length ? "No chats yet. Pick Vakil or another counsel above to start one." : "Create your first counsel to start chatting."}
               </p>
             )}
             {archivedCount > 0 && !q && (
@@ -482,9 +491,17 @@ export default function Sidebar() {
             )}
             <Link
               href="/apps"
-              className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-full border text-[14px] transition-colors ${pathname === "/apps" ? "border-foreground bg-card" : "border-black/10 hover:border-black/25"}`}
+              className={`flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full border text-[13px] transition-colors ${pathname === "/apps" ? "border-foreground bg-card" : "border-black/10 hover:border-black/25"}`}
             >
-              <LayoutGrid className="size-4" strokeWidth={1.5} /> Apps
+              <LayoutGrid className="size-3.5" strokeWidth={1.5} /> Apps
+            </Link>
+            <Link
+              href="/landing"
+              className="flex size-10 shrink-0 items-center justify-center rounded-full border border-black/10 transition-colors hover:border-black/25 text-foreground/70 hover:text-foreground"
+              title="Product Tour & Overview"
+              aria-label="Product Tour"
+            >
+              <Globe className="size-4" strokeWidth={1.5} />
             </Link>
             <Link
               href="/settings"

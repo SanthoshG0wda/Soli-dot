@@ -27,7 +27,7 @@ export default function NewDot() {
     start(async () => {
       const id = await createDot({ name: name || placeholder, purpose, instructions, look });
       markRead(id);
-      router.push(`/dots/${id}`);
+      router.push(`/vakil/${id}`);
     });
 
   return (

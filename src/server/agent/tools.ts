@@ -12,7 +12,7 @@ import type { Dot, RuleDecision } from "@/lib/types";
 import { VectorStoreError } from "@/lib/vector/errors";
 import { stashLegalSources } from "./legal-sources";
 
-export type ToolCtx = { dot: Dot; signal: AbortSignal; depth: number; userId: string };
+export type ToolCtx = { dot: Dot; signal: AbortSignal; depth: number; userId: string; conversationId?: string };
 
 type Schema = { type: "object"; properties: Record<string, unknown>; required: string[]; additionalProperties: false };
 
@@ -95,7 +95,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: "open_url",
     label: "Browsing the web",
-    description: "Open a URL in your browser (you'll see it via the computer tool / read_page). Your browser keeps its logins.",
+    description: "Open a URL in your browser. For live news, searches, or web research, open Google News (https://news.google.com), DuckDuckGo (https://duckduckgo.com), or specific sites (techcrunch.com, theverge.com, etc.). Returns the page title and visible text.",
     parameters: obj({ url: str("URL to open") }),
     describe: (a) => `open ${s(a.url)} in its browser`,
     defaultDecision: () => "allow",
@@ -257,6 +257,7 @@ export const TOOLS: ToolDef[] = [
     execute: async (a, ctx) => {
       const res = await createDocumentArtifact({
         dotId: ctx.dot.id,
+        conversationId: ctx.conversationId || repo.currentConversation(ctx.dot.id) || undefined,
         userId: ctx.userId,
         title: s(a.title),
         filename: s(a.filename),
@@ -287,6 +288,7 @@ export const TOOLS: ToolDef[] = [
     execute: async (a, ctx) => {
       const res = await createDocumentArtifact({
         dotId: ctx.dot.id,
+        conversationId: ctx.conversationId || repo.currentConversation(ctx.dot.id) || undefined,
         userId: ctx.userId,
         title: s(a.title),
         filename: s(a.filename),
@@ -317,6 +319,7 @@ export const TOOLS: ToolDef[] = [
     execute: async (a, ctx) => {
       const res = await createDocumentArtifact({
         dotId: ctx.dot.id,
+        conversationId: ctx.conversationId || repo.currentConversation(ctx.dot.id) || undefined,
         userId: ctx.userId,
         title: s(a.title),
         filename: s(a.filename),
@@ -350,6 +353,7 @@ export const TOOLS: ToolDef[] = [
     execute: async (a, ctx) => {
       const res = await createDocumentArtifact({
         dotId: ctx.dot.id,
+        conversationId: ctx.conversationId || repo.currentConversation(ctx.dot.id) || undefined,
         userId: ctx.userId,
         title: s(a.title),
         filename: s(a.filename),
@@ -522,7 +526,15 @@ export const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 
 /** Look up a tool by name, including Composio's dynamic ones. */
 export function findTool(name: string, userId: string): ToolDef | undefined {
-  return TOOL_BY_NAME.get(name) ?? composioTools(userId).find((t) => t.name === name);
+  const trimmed = name.trim();
+  const direct = TOOL_BY_NAME.get(trimmed) ?? composioTools(userId).find((t) => t.name === trimmed);
+  if (direct) return direct;
+  for (const [toolName, toolDef] of TOOL_BY_NAME.entries()) {
+    if (trimmed === toolName + toolName || trimmed.startsWith(toolName)) {
+      return toolDef;
+    }
+  }
+  return undefined;
 }
 
 export function toolsForDot(dot: Dot, userId: string): ToolDef[] {

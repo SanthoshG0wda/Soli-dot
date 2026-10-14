@@ -38,7 +38,7 @@ export function MenuButton() {
 export function FloatingSidebarTrigger() {
   const collapsed = useSidebarCollapsed();
   const pathname = usePathname();
-  if (!collapsed || pathname.startsWith("/dots/")) return null;
+  if (!collapsed || pathname.startsWith("/dots/") || pathname.startsWith("/vakil/")) return null;
 
   return (
     <div className="fixed top-3 left-3 z-30 hidden items-center gap-1 md:flex">
@@ -66,7 +66,7 @@ export function FloatingSidebarTrigger() {
 /** Top bar for small screens on pages without their own header (dot pages have one). */
 export default function MobileBar() {
   const pathname = usePathname();
-  if (pathname.startsWith("/dots/")) return null;
+  if (pathname.startsWith("/dots/") || pathname.startsWith("/vakil/")) return null;
   return (
     <div className="flex h-12 shrink-0 items-center gap-2 border-b border-black/[0.06] px-2 md:hidden">
       <MenuButton />

@@ -8,6 +8,17 @@ export interface PdfOptions {
   subject?: string;
 }
 
+function sanitizeForPdf(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/₹/g, "Rs. ")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[—–]/g, "-")
+    .replace(/[•]/g, "*")
+    .replace(/[^\x00-\x7F]/g, " ");
+}
+
 /**
  * Generates a clean, professional court-ready PDF document from structured text or legal draft.
  * Conforms to standard Indian Court conventions:
@@ -17,10 +28,15 @@ export interface PdfOptions {
  * - Proper text wrapping and legal heading recognition
  */
 export async function generatePdfDocument(content: string, options: PdfOptions): Promise<Buffer> {
+  const safeContent = sanitizeForPdf(content);
+  const safeTitle = sanitizeForPdf(options.title);
+  const safeCourtHeader = options.courtHeader ? sanitizeForPdf(options.courtHeader) : undefined;
+  const safeSubject = options.subject ? sanitizeForPdf(options.subject) : undefined;
+
   const pdfDoc = await PDFDocument.create();
-  pdfDoc.setTitle(options.title);
+  pdfDoc.setTitle(safeTitle);
   if (options.author) pdfDoc.setAuthor(options.author);
-  if (options.subject) pdfDoc.setSubject(options.subject);
+  if (safeSubject) pdfDoc.setSubject(safeSubject);
 
   const timesRoman = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const timesRomanBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
@@ -81,7 +97,7 @@ export async function generatePdfDocument(content: string, options: PdfOptions):
   }
 
   // Pre-process paragraphs
-  const rawParagraphs = content.replace(/\r\n/g, "\n").split("\n");
+  const rawParagraphs = safeContent.replace(/\r\n/g, "\n").split("\n");
 
   type FormattedBlock = {
     type: "title" | "heading" | "body" | "quote" | "separator";
@@ -208,7 +224,7 @@ export async function generatePdfDocument(content: string, options: PdfOptions):
 
     // Running Header (from page 2 onwards)
     if (pageNum > 1) {
-      const headerText = options.courtHeader || options.title.slice(0, 70);
+      const headerText = safeCourtHeader || safeTitle.slice(0, 70);
       page.drawText(headerText, {
         x: marginLeft,
         y: pageHeight - 32,

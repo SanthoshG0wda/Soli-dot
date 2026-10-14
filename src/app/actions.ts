@@ -119,7 +119,7 @@ export async function deleteConversation(convId: string) {
   // Idempotent: deleting an already-gone conversation is a no-op, not an error.
   if (!repo.getConversation(convId)) return;
   ownConversation(convId, user.id);
-  repo.deleteConversation(convId);
+  repo.deleteConversation(convId, user.id);
 }
 
 export async function moveConversation(convId: string, targetDotId: string) {

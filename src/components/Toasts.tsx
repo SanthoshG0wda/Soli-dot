@@ -15,10 +15,12 @@ export default function Toasts() {
     >
       {toasts.map((t) => {
         const dot = dots.find((d) => d.id === t.dotId);
+        const canonicalId = t.dotId.startsWith("dot_") ? t.dotId.replace(/^dot_/, "vakil_") : t.dotId;
+        const href = `/vakil/${canonicalId}`;
         return (
           <Link
             key={t.id}
-            href={`/dots/${t.dotId}`}
+            href={href}
             onClick={() => (markRead(t.dotId), dismissToast(t.id))}
             className="surface pointer-events-auto flex gap-3 p-3.5 shadow-elevated transition-colors hover:border-black/15"
           >

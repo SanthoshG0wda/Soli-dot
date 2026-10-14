@@ -31,12 +31,12 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
   const router = useRouter();
 
   if (!dot) {
-    return <div className="flex flex-1 items-center justify-center text-body-sm text-foreground/45">{loaded ? "This dot doesn't exist." : "Loading…"}</div>;
+    return <div className="flex flex-1 items-center justify-center text-body-sm text-foreground/45">{loaded ? "This counsel doesn't exist." : "Loading…"}</div>;
   }
 
-  const base = `/dots/${dot.id}`;
+  const base = `/vakil/${dot.id}`;
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <header className="relative flex h-14 shrink-0 items-center gap-1.5 px-2 sm:gap-2 sm:px-4">
         <MenuButton />
         {/* Dot pill */}
@@ -80,7 +80,7 @@ export default function DotView({ dotId, tab, conversation }: { dotId: string; t
             <button
               className="btn-quiet size-8 p-0"
               disabled={pending}
-              title="Pause: any ongoing work will be stopped, and your dot will not message you until you resume it."
+              title={`Pause: any ongoing work will be stopped, and ${dot.name} will not message you until you resume.`}
               aria-label="Pause"
               onClick={() => start(() => pauseDot(dot.id))}
             >

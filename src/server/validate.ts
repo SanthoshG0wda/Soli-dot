@@ -2,14 +2,15 @@ import "server-only";
 
 // Central ID + parsing helpers. IDs are generated as `<prefix>_<16 hex>` in db.ts.
 const ID_RE: Record<string, RegExp> = {
-  dot: /^dot_[0-9a-f]{16}$/,
+  dot: /^(?:dot|vakil)_[0-9a-f]{16}$/,
   conv: /^conv_[0-9a-f]{16}$/,
   ch: /^ch_[0-9a-f]{16}$/,
   msg: /^msg_[0-9a-f]{16}$/,
   file: /^file_[0-9a-f]{16}$/,
 };
 
-export function isValidId(prefix: "dot" | "conv" | "ch" | "msg" | "file", id: string): boolean {
+export function isValidId(prefix: "dot" | "conv" | "ch" | "msg" | "file" | "vakil", id: string): boolean {
+  if (prefix === "vakil" || prefix === "dot") return /^(?:dot|vakil)_[0-9a-f]{16}$/.test(id);
   return ID_RE[prefix]?.test(id) ?? false;
 }
 

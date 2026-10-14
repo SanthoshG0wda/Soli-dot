@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: { "*": [".data/**", ".env*", ".gstack/**", "dist/**", "scripts/**"] },
   // The floating dev badge sits on top of the sidebar's Settings link.
   devIndicators: false,
+  async rewrites() {
+    return [
+      {
+        source: "/api/vakil/:path*",
+        destination: "/api/dots/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

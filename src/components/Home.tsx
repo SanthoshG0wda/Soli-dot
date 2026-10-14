@@ -34,17 +34,17 @@ export default function Home() {
   if (loaded && !dots.length) {
     return (
       <div className="flex-1 overflow-y-auto">
-        <div className="rails mx-auto flex min-h-full max-w-[880px] flex-col items-center justify-center px-4 sm:px-8 py-16 text-center">
+        <div className="rails animate-page-rise mx-auto flex min-h-full max-w-[880px] flex-col items-center justify-center px-4 sm:px-8 py-16 text-center">
           <div className="dot-grid rounded-full">
             <Dot3DLazy look={DEFAULT_LOOK} size={240} stage />
           </div>
-          <div className="eyebrow mt-6 text-brand-readable/80">Personal agents</div>
-          <h1 className="text-display mt-3">Meet your dots</h1>
+          <div className="eyebrow mt-6 text-brand-readable/80">Chamber Counsel</div>
+          <h1 className="text-display mt-3">Meet Vakil & Your Legal Counsel</h1>
           <p className="text-body-lg mt-4 max-w-[520px] text-foreground/60">
-            Dots work on their own. Each one has its own computer and browser, remembers what matters, runs routines on a schedule, and knows when to ask for your approval.
+            Your counsel work on their own. Each one specializes in court drafting, legal research, evidentiary scrutiny, and chamber management.
           </p>
           <Link href="/new" className="btn-primary mt-8 h-10 px-5 text-[15px]">
-            Create your first dot
+            Create your first counsel
           </Link>
         </div>
       </div>
@@ -76,15 +76,21 @@ export default function Home() {
     start(async () => {
       const convId = await startConversation(target.id, value);
       markRead(target.id);
-      router.push(`/dots/${target.id}?c=${convId}`);
+      const canonicalId = target.id.startsWith("dot_") ? target.id.replace(/^dot_/, "vakil_") : target.id;
+      router.push(`/vakil/${canonicalId}?c=${convId}`);
     });
   };
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="rails mx-auto min-h-full max-w-[880px] px-4 sm:px-8 pb-16">
+      <div className="rails animate-page-rise mx-auto min-h-full max-w-[880px] px-4 sm:px-8 pb-16">
         <section className="flex flex-col items-center pt-12 pb-8 text-center sm:pt-16">
-          {target && <DotOrb look={target.look} status={target.status} size={44} />}
+          {target && (
+            <div className="relative">
+              <span className="absolute inset-0 rounded-full border border-brand/20 animate-[pulse-ring_1.8s_ease-out_infinite]" />
+              <DotOrb look={target.look} status={target.status} size={44} />
+            </div>
+          )}
           {targetPersona && (
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/5 px-2.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider text-brand-readable uppercase">
               {targetPersona.role}
@@ -98,8 +104,10 @@ export default function Home() {
           </p>
 
           {/* Dot picker — ChatGPT-style model pills */}
+          <div className="motion-line mt-5 h-px w-full max-w-[420px] bg-gradient-to-r from-transparent via-brand/20 to-transparent" />
+
           {dots.length > 1 && (
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-1.5">
+            <div className="motion-stagger mt-5 flex flex-wrap items-center justify-center gap-1.5">
               {dots.map((d) => {
                 const p = getPersonaByName(d.name);
                 return (
@@ -107,7 +115,7 @@ export default function Home() {
                     key={d.id}
                     type="button"
                     onClick={() => setPicked(d.id)}
-                    className={`flex h-8 items-center gap-1.5 rounded-full border pr-3 pl-1.5 text-[13px] transition-colors ${d.id === target?.id ? "border-foreground bg-foreground text-card" : "border-black/10 bg-card text-foreground/60 hover:border-black/20 hover:text-foreground"}`}
+                    className={`motion-card flex h-8 items-center gap-1.5 rounded-full border pr-3 pl-1.5 text-[13px] transition-colors ${d.id === target?.id ? "border-foreground bg-foreground text-card shadow-sm" : "border-black/10 bg-card text-foreground/60 hover:border-black/20 hover:text-foreground"}`}
                   >
                     <DotOrb look={d.look} status={d.status} size={20} />
                     <span className="font-medium">{d.name}</span>
@@ -123,7 +131,7 @@ export default function Home() {
           )}
 
           <div className="mt-5 w-full max-w-[680px] text-left">
-            <div className="rounded-[28px] border border-black/10 bg-card px-4 pt-3 pb-2 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.15)] transition-shadow focus-within:border-black/20 focus-within:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.2)]">
+            <div className="composer-shell rounded-[28px] border border-black/10 bg-card/95 px-4 pt-3 pb-2 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.15)] backdrop-blur transition-shadow focus-within:border-black/20 focus-within:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.2)]">
               <textarea
                 ref={inputRef}
                 autoFocus
@@ -145,7 +153,7 @@ export default function Home() {
                   {target?.name ?? "Loading…"} will work on its own
                 </span>
                 <button
-                  className="ml-auto flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-card transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-foreground/30"
+                  className="motion-card ml-auto flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-card transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-foreground/30"
                   disabled={pending || !text.trim()}
                   onClick={submit}
                   aria-label="Send"
@@ -156,7 +164,7 @@ export default function Home() {
             </div>
 
             {/* Persona-specific suggestion cards */}
-            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="motion-stagger mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {targetSuggestions.map((s, idx) => {
                 const Icon = resolveSuggestionIcon(s.id, idx);
                 return (
@@ -165,7 +173,7 @@ export default function Home() {
                     type="button"
                     onClick={() => pickSuggestion(s)}
                     disabled={pending || !target}
-                    className="group flex items-start gap-3 rounded-2xl border border-black/[0.08] bg-card px-4 py-3 text-left transition-all hover:border-black/20 hover:bg-popover hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,0.15)] disabled:opacity-50"
+                    className="motion-card group flex items-start gap-3 rounded-2xl border border-black/[0.08] bg-card px-4 py-3 text-left transition-all hover:border-black/20 hover:bg-popover hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,0.15)] disabled:opacity-50"
                   >
                     <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand-readable">
                       <Icon className="size-4" strokeWidth={1.75} />

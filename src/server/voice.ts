@@ -16,7 +16,7 @@ function voicePrompt(dotId: string, convId: string): string {
     .filter((m) => (m.role === "user" || m.role === "dot") && m.text)
     .map((m) => `${m.role === "user" ? "User" : dot.name}: ${m.text.slice(0, 300)}`)
     .join("\n");
-  return `You are ${dot.name}, the user's personal AI agent (a "dot"), on a live voice call. ${dot.purpose ? `Your job: ${dot.purpose}.` : ""}
+  return `You are ${dot.name}, the user's dedicated legal counsel and advisor, on a live voice call. ${dot.purpose ? `Your role: ${dot.purpose}.` : ""}
 ${dot.instructions ? `How the user wants you to work: ${dot.instructions}\n` : ""}
 Voice style: warm, natural, brief. One or two short sentences per turn. No lists, no markdown, no reading out URLs or IDs. Don't introduce yourself; open with a short friendly line.
 

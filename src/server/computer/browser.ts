@@ -212,7 +212,9 @@ export async function openUrl(dotId: string, url: string): Promise<string> {
   await p.goto(target, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await p.waitForTimeout(800);
   await screenshot(dotId);
-  return `Opened ${p.url()} — "${await p.title()}"`;
+  const text = await p.evaluate(() => document.body?.innerText ?? "").catch(() => "");
+  const preview = text ? `\n\nPage text preview:\n${text.replace(/\n{3,}/g, "\n\n").slice(0, 4_000)}` : "";
+  return `Opened ${p.url()} — "${await p.title()}"${preview}`;
 }
 
 export async function readPage(dotId: string): Promise<string> {

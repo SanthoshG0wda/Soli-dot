@@ -44,7 +44,7 @@ export default function SetupPane({ dot }: { dot: Dot }) {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="rails mx-auto min-h-full max-w-[1080px] px-4 sm:px-8 pb-16">
-        <PageHeader eyebrow="Setup" title={`How ${dot.name} works`} description="Personality, rules, routines, memory, and skills. Your dot also updates these itself as you work together." />
+        <PageHeader eyebrow="Setup" title={`How ${dot.name} works`} description={`Personality, rules, routines, memory, and skills. ${dot.name} also updates these itself as you work together.`} />
 
         <Section eyebrow="Identity" title="Personality & appearance" description="Its name, job, and how you want it to work.">
           <div className="grid gap-6 lg:grid-cols-[1fr_220px]">
@@ -55,7 +55,7 @@ export default function SetupPane({ dot }: { dot: Dot }) {
               </label>
               <label className="block">
                 <span className="eyebrow mb-1.5 block">Job</span>
-                <input className="field" value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="What this dot is for" />
+                <input className="field" value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="What this counsel is for" />
               </label>
               <div className="block">
                 <div className="flex flex-wrap items-center justify-between gap-1 mb-1.5">
@@ -209,7 +209,7 @@ export default function SetupPane({ dot }: { dot: Dot }) {
           </div>
         </Section>
 
-        <Section eyebrow="Skills" title="Repeatable know-how" description="Markdown instructions it follows for tasks it repeats. Ask your dot to save one after it figures something out.">
+        <Section eyebrow="Skills" title="Repeatable know-how" description={`Markdown instructions it follows for tasks it repeats. Ask ${dot.name} to save one after it figures something out.`}>
           {skills.length > 0 ? (
             <div className="surface divide-y divide-black/[0.06]">
               {skills.map((k) => (

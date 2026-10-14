@@ -90,8 +90,9 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
         if (convId) {
           await sendMessage(dot.id, text, attachments, convId);
         } else {
+          const canonicalId = dot.id.startsWith("dot_") ? dot.id.replace(/^dot_/, "vakil_") : dot.id;
           const newId = await startConversation(dot.id, text, attachments);
-          router.replace(`/dots/${dot.id}?c=${newId}`);
+          router.replace(`/vakil/${canonicalId}?c=${newId}`);
         }
       } catch (err) {
         console.error("Failed to send message:", err);
@@ -103,8 +104,9 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
   };
 
   const voice = async () => {
+    const canonicalId = dot.id.startsWith("dot_") ? dot.id.replace(/^dot_/, "vakil_") : dot.id;
     const id = convId ?? (await startVoiceConversation(dot.id));
-    if (!convId) router.replace(`/dots/${dot.id}?c=${id}`);
+    if (!convId) router.replace(`/vakil/${canonicalId}?c=${id}`);
     void startCall(dot.id, id);
   };
   // ── Resizable split pane between Chat area and Document Preview area ───────
@@ -188,8 +190,12 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
     } catch {}
   };
 
+  const minChatWidth = 320;
+  const maxBoard = Math.max(280, containerWidth - minChatWidth - 10);
+  const effectiveBoardWidth = Math.min(boardWidth, maxBoard);
+
   return (
-    <div ref={containerRef} className="relative flex min-h-0 flex-1 overflow-hidden">
+    <div ref={containerRef} className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden animate-page-rise">
       {/* Global drag shield to catch all mouse events smoothly over iframes & selection */}
       {isResizingSplit && (
         <div className="fixed inset-0 z-50 cursor-col-resize select-none" />
@@ -197,7 +203,7 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
 
       {/* Chat conversation column */}
       <div
-        className={`flex min-h-0 flex-1 flex-col ${
+        className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${
           activeArtifactId ? "hidden lg:flex" : ""
         } ${
           isResizingSplit
@@ -224,8 +230,8 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
         )}
 
         {/* Scrollable message column — fresh chats center like ChatGPT, threads pin to newest */}
-        <div className="flex flex-1 flex-col-reverse overflow-y-auto">
-          <div className={`flex min-h-full shrink-0 flex-col px-4 sm:px-6 ${fresh ? "justify-center" : ""}`}>
+        <div className="flex min-w-0 flex-1 flex-col-reverse overflow-y-auto overflow-x-hidden">
+          <div className={`flex min-h-full min-w-0 shrink-0 flex-col px-4 sm:px-6 ${fresh ? "justify-center" : ""}`}>
             {!fresh && <div className="flex-1" />}
             {fresh && <div className="min-h-6 flex-1" />}
 
@@ -237,9 +243,9 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
             )}
 
             {/* Message list */}
-            <div className={`${COL} py-8 space-y-6`}>
+            <div className={`${COL} pt-6 pb-8 space-y-6`}>
               {shown.map((m, i) => (
-                <div key={m.id}>
+                <div key={m.id} className="animate-message-rise">
                   {(i === 0 || m.createdAt - shown[i - 1].createdAt > 60 * 60_000) && (
                     <DateSeparator ts={m.createdAt} />
                   )}
@@ -249,7 +255,7 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
 
               {/* Thinking indicator — matches dot avatar alignment */}
               {workingHere && (
-                <div className="flex items-center gap-3 pt-1">
+                <div className="motion-line flex items-center gap-3 rounded-full border border-brand/10 bg-card/70 px-3 py-2 pt-2 shadow-sm backdrop-blur">
                   <div className="shrink-0">
                     <DotOrb look={dot.look} status="working" size={28} />
                   </div>
@@ -261,7 +267,7 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
         </div>
 
         {/* Composer — same max-width column, pinned to bottom */}
-        <div className="w-full px-4 pb-4 sm:px-6 sm:pb-6">
+        <div className="w-full min-w-0 px-4 pb-4 sm:px-6 sm:pb-6">
           {sendError && (
             <div className={`${COL} mb-2`}>
               <div className="flex items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/[0.08] px-3.5 py-2 text-[13px] text-destructive">
@@ -291,13 +297,13 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
             onPointerDown={handleSplitterPointerDown}
             onDoubleClick={handleResetSplit}
             isDragging={isResizingSplit}
-            chatPercent={Math.max(10, Math.min(90, Math.round(((containerWidth - boardWidth) / (containerWidth || 1)) * 100)))}
-            boardPercent={Math.max(10, Math.min(90, Math.round((boardWidth / (containerWidth || 1)) * 100)))}
+            chatPercent={Math.max(10, Math.min(90, Math.round(((containerWidth - effectiveBoardWidth) / (containerWidth || 1)) * 100)))}
+            boardPercent={Math.max(10, Math.min(90, Math.round((effectiveBoardWidth / (containerWidth || 1)) * 100)))}
           />
           <ArtifactBoard
             conversationId={convId}
             onClose={() => setActiveArtifact(null)}
-            width={boardWidth}
+            width={effectiveBoardWidth}
             isDragging={isResizingSplit}
             onResetWidth={handleResetSplit}
           />
@@ -372,8 +378,11 @@ function Welcome({ dot, onSuggest }: { dot: Dot; onSuggest: (text: string) => vo
   const suggestions = getSuggestionsForDot(dot);
 
   return (
-    <div className="flex flex-col items-center px-2 pt-10 pb-4 text-center sm:pt-16">
-      <DotOrb look={dot.look} status={dot.status} size={44} />
+    <div className="flex flex-col items-center px-2 pt-10 pb-4 text-center sm:pt-16 animate-page-rise">
+      <div className="relative">
+        <span className="absolute inset-0 rounded-full border border-brand/20 animate-[pulse-ring_1.8s_ease-out_infinite]" />
+        <DotOrb look={dot.look} status={dot.status} size={44} />
+      </div>
       <div className="mt-4 flex items-center gap-2">
         <p className="font-mono text-[11px] tracking-widest text-foreground/40 uppercase">
           {daypart} · {dot.name}
@@ -397,7 +406,7 @@ function Welcome({ dot, onSuggest }: { dot: Dot; onSuggest: (text: string) => vo
         </p>
       )}
 
-      <div className="mt-8 grid w-full grid-cols-1 gap-2.5 text-left sm:grid-cols-2">
+      <div className="motion-stagger mt-8 grid w-full grid-cols-1 gap-2.5 text-left sm:grid-cols-2">
         {suggestions.map((s, idx) => {
           const isBail = s.id.includes("bail") || idx === 0;
           const isNotice = s.id.includes("notice") || idx === 1;
@@ -409,7 +418,7 @@ function Welcome({ dot, onSuggest }: { dot: Dot; onSuggest: (text: string) => vo
               key={s.id}
               type="button"
               onClick={() => onSuggest(s.template)}
-              className="group flex items-start gap-3 rounded-2xl border border-black/[0.08] bg-card px-4 py-3.5 text-left transition-all hover:border-black/20 hover:bg-popover hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,0.15)]"
+              className="motion-card group flex items-start gap-3 rounded-2xl border border-black/[0.08] bg-card px-4 py-3.5 text-left transition-all hover:border-black/20 hover:bg-popover hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,0.15)]"
             >
               <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand-readable">
                 <Icon className="size-4" strokeWidth={1.75} />
@@ -503,7 +512,7 @@ function Composer({ dot, onSend, onVoice, submitting = false, draft = null }: { 
       onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles([...e.dataTransfer.files]); }}
     >
       <div
-        className={`rounded-[28px] border bg-card px-4 pt-3 pb-2 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.12)] transition-[box-shadow,border-color] focus-within:border-black/20 focus-within:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] ${dragging ? "border-brand border-dashed" : "border-black/10"}`}
+        className={`composer-shell rounded-[28px] border bg-card/95 px-4 pt-3 pb-2 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.12)] backdrop-blur transition-[box-shadow,border-color] focus-within:border-black/20 focus-within:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] ${dragging ? "border-brand border-dashed" : "border-black/10"}`}
       >
         {uploads.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5 px-1 pt-1">
@@ -553,7 +562,7 @@ function Composer({ dot, onSend, onVoice, submitting = false, draft = null }: { 
           <div className="ml-auto flex items-center gap-1">
             <button
               type="button"
-              className="flex size-9 shrink-0 items-center justify-center rounded-full text-foreground/50 transition-colors hover:bg-black/[0.05] hover:text-foreground"
+              className="motion-card flex size-9 shrink-0 items-center justify-center rounded-full text-foreground/50 transition-colors hover:bg-black/[0.05] hover:text-foreground"
               onClick={onVoice}
               aria-label={`Voice mode with ${dot.name}`}
               title="Voice mode"
@@ -562,7 +571,7 @@ function Composer({ dot, onSend, onVoice, submitting = false, draft = null }: { 
             </button>
             <button
               type="button"
-              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-card transition-all hover:opacity-85 disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-foreground/30"
+              className="motion-card flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-card transition-all hover:opacity-85 disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-foreground/30"
               disabled={submitting || pending || busy || (!text.trim() && !ready.length)}
               onClick={submit}
               aria-label="Send"
@@ -637,7 +646,7 @@ export function MessageRow({ m, dot, showName = false }: { m: Message; dot: Dot;
   // ── User bubble (right-aligned, pill shape, dark background) ────────────
   if (m.role === "user") {
     return (
-      <div className="flex justify-end">
+      <div className="flex justify-end animate-message-rise">
         <div className="flex max-w-[85%] flex-col items-end sm:max-w-[75%]">
           {m.from && (
             <span className="mb-1 font-mono text-[10px] tracking-wider text-foreground/40 uppercase">
@@ -645,7 +654,7 @@ export function MessageRow({ m, dot, showName = false }: { m: Message; dot: Dot;
             </span>
           )}
           {m.text && (
-            <div className="rounded-2xl rounded-br-sm bg-foreground px-4 py-3 text-[15px] leading-[1.55] tracking-default whitespace-pre-wrap text-card">
+            <div className="motion-card rounded-2xl rounded-br-sm bg-foreground px-4 py-3 text-[15px] leading-[1.55] tracking-default whitespace-pre-wrap text-card shadow-[0_10px_24px_-16px_rgba(0,0,0,0.55)]">
               {m.text}
             </div>
           )}
@@ -660,7 +669,7 @@ export function MessageRow({ m, dot, showName = false }: { m: Message; dot: Dot;
     const [label, ...rest] = m.text.split(" · ");
     const Icon = ACTIVITY_ICON.find(([re]) => re.test(label))?.[1] ?? Sparkles;
     return (
-      <div className="flex min-w-0 items-center gap-2 py-0.5 text-foreground/40">
+      <div className="motion-line flex min-w-0 items-center gap-2 rounded-full bg-card/55 px-2.5 py-1 text-foreground/40">
         <Icon className="size-3.5 shrink-0" strokeWidth={1.5} />
         {showName && <span className="shrink-0 text-[12px] text-foreground/55">{dot.name}</span>}
         <span className="shrink-0 font-mono text-[11px] tracking-wide whitespace-nowrap uppercase">{label}</span>
@@ -672,7 +681,7 @@ export function MessageRow({ m, dot, showName = false }: { m: Message; dot: Dot;
   // ── System message (centered hairline) ──────────────────────────────────
   if (m.role === "system") {
     return (
-      <div className="flex items-center gap-3 py-2">
+      <div className="flex items-center gap-3 py-2 animate-message-rise">
         <span className="h-px flex-1 bg-black/[0.06]" />
         <span className="text-[11px] text-foreground/40">{m.text}</span>
         <span className="h-px flex-1 bg-black/[0.06]" />
@@ -699,7 +708,7 @@ export function MessageRow({ m, dot, showName = false }: { m: Message; dot: Dot;
   ) ?? [];
 
   return (
-    <div className="flex gap-3">
+    <div className="flex gap-3 animate-message-rise">
       {/* Avatar: always shown in direct chats too, matches Claude's layout */}
       <div className="mt-0.5 shrink-0">
         <DotOrb look={dot.look} status="idle" size={28} />
@@ -747,7 +756,7 @@ function MessageActions({ text }: { text: string }) {
   };
 
   return (
-    <div className="mt-2.5 flex items-center gap-0.5 text-foreground/40">
+    <div className="mt-2.5 flex items-center gap-0.5 text-foreground/40 opacity-70 transition-opacity hover:opacity-100">
       <button
         type="button"
         onClick={copyText}

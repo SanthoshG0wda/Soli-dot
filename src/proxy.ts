@@ -3,7 +3,6 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/token";
 
 const PROTECTED_PREFIXES = [
-  "/",
   "/admin",
   "/apps",
   "/channels",
@@ -14,9 +13,11 @@ const PROTECTED_PREFIXES = [
   "/api/composio",
   "/api/conversations",
   "/api/dots",
+  "/api/vakil",
   "/api/events",
   "/api/files",
   "/api/legal",
+  "/vakil",
 ];
 const AUTH_PAGES = ["/login", "/signup"];
 
@@ -42,10 +43,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const isProtected = PROTECTED_PREFIXES.some(
-    (prefix) =>
-      prefix === "/"
-        ? pathname === "/"
-        : pathname === prefix || pathname.startsWith(`${prefix}/`),
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
   if (isProtected && !session) {
     const url = new URL("/login", request.url);
@@ -77,12 +75,14 @@ export const config = {
     "/apps/:path*",
     "/channels/:path*",
     "/dots/:path*",
+    "/vakil/:path*",
     "/new/:path*",
     "/settings/:path*",
     "/api/apps/:path*",
     "/api/composio/:path*",
     "/api/conversations/:path*",
     "/api/dots/:path*",
+    "/api/vakil/:path*",
     "/api/events/:path*",
     "/api/files/:path*",
     "/api/legal/:path*",

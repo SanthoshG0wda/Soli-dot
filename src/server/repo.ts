@@ -17,7 +17,8 @@ const now = () => Date.now();
 // owner from the row they act on. Messages inherit ownership via conversation.
 
 /** Last-known owner of deleted ids, so the event stream can still filter their delete events. */
-const tombstones = new Map<string, string>();
+const gt = globalThis as unknown as { __dotsTombstones?: Map<string, string> };
+const tombstones = (gt.__dotsTombstones ??= new Map<string, string>());
 function rememberOwner(id: string, owner: string) {
   if (!owner) return;
   tombstones.set(id, owner);
@@ -114,7 +115,7 @@ export function findDotByName(name: string, userId: string): Dot | null {
 }
 
 export function createDot(input: { name: string; purpose: string; instructions?: string; look: Look; userId: string }): Dot {
-  const dotId = id("dot");
+  const dotId = id("vakil");
   db().prepare("INSERT INTO dots (id, name, purpose, instructions, look, user_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
     .run(dotId, input.name, input.purpose, input.instructions ?? "", JSON.stringify(input.look), input.userId, now());
   const dot = getDot(dotId)!;
@@ -248,8 +249,8 @@ function touchConversation(convId: string) {
   db().prepare("UPDATE conversations SET updated_at = ? WHERE id = ?").run(now(), convId);
 }
 
-export function deleteConversation(convId: string) {
-  rememberOwner(convId, ownerOfConversation(convId));
+export function deleteConversation(convId: string, owner?: string) {
+  rememberOwner(convId, owner || ownerOfConversation(convId));
   const d = db();
   try {
     d.exec("BEGIN");

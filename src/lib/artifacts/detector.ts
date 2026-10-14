@@ -126,14 +126,21 @@ export function detectLegalDocument(text: string): DetectedDocument | null {
 
     // Extract title
     let title = "Court Petition";
+    const statutoryNoticeMatch = cleaned.match(/STATUTORY (?:DEMAND )?NOTICE(?:\s*\n+\s*(?:UNDER )?SECTION\s*138[^\n\r]*)?/i);
     const titleMatch = cleaned.match(
-      /(?:#+\s*)?(APPLICATION FOR[^\n\r]+|APPLICATION UNDER SECTION[^\n\r]+|PETITION UNDER SECTION[^\n\r]+|IN THE MATTER OF:[^\n\r]+|STATUTORY (?:DEMAND )?NOTICE[^\n\r]+|NOTICE UNDER SECTION[^\n\r]+|DEMAND NOTICE UNDER SECTION[^\n\r]+|LEGAL DEMAND NOTICE[^\n\r]+)/i,
+      /(?:#+\s*|\*\*\s*)?(APPLICATION FOR[^\n\r]+|APPLICATION UNDER SECTION[^\n\r]+|PETITION UNDER SECTION[^\n\r]+|IN THE MATTER OF:[^\n\r]+|STATUTORY (?:DEMAND )?NOTICE[^\n\r]*|NOTICE UNDER SECTION[^\n\r]+|DEMAND NOTICE UNDER SECTION[^\n\r]+|LEGAL DEMAND NOTICE[^\n\r]+)/i,
     );
-    if (titleMatch) {
+    if (statutoryNoticeMatch && /138/.test(cleaned)) {
+      title = "Statutory Demand Notice under Section 138 NI Act";
+    } else if (titleMatch) {
       title = titleMatch[1].replace(/[#*`_]/g, "").trim();
+      // If title is just "STATUTORY DEMAND NOTICE" on a line by itself and followed by Section 138
+      if (/^STATUTORY (?:DEMAND )?NOTICE$/i.test(title) && /138/.test(cleaned)) {
+        title = "Statutory Demand Notice under Section 138 NI Act";
+      }
     } else {
       const firstHeader = cleaned.match(/^#+\s*(.+)$/m);
-      if (firstHeader) {
+      if (firstHeader && !/^\d+\./.test(firstHeader[1].trim())) {
         title = firstHeader[1].replace(/[*_`]/g, "").trim();
       } else {
         const firstLine = cleaned.split("\n").find((l) => l.trim().length > 0);
@@ -154,11 +161,15 @@ export function detectLegalDocument(text: string): DetectedDocument | null {
     };
   }
 
-  // Detect long structured markdown documents with clear heading
-  if (text.length > 400 && /^#+\s+/m.test(text)) {
+  // Detect long structured markdown documents with clear heading (skip simple chat lists/advice)
+  if (
+    text.length > 500 &&
+    /^#+\s+/m.test(text) &&
+    !/^(?:Here('s| is)|Sure|Certainly|Below is|You can|As requested|Regarding your question|What to do next)/i.test(text.trim())
+  ) {
     const cleaned = cleanDocumentContent(text);
     const headerMatch = cleaned.match(/^#+\s+(.+)$/m);
-    if (headerMatch) {
+    if (headerMatch && !/^\d+\.\s*(?:Fill|Send|Draft|Wait|Contact)/i.test(headerMatch[1].trim())) {
       const heading = headerMatch[1].replace(/[*_`]/g, "").trim();
       return {
         isLegalDoc: false,

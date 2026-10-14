@@ -21,12 +21,15 @@ export default function VoicePanel() {
   // The conversation itself is saved into the chat; the panel only shows hand-offs and problems.
   const lines = call.lines.filter((l) => l.who === "note").slice(-3);
 
+  const canonicalId = dot.id.startsWith("dot_") ? dot.id.replace(/^dot_/, "vakil_") : dot.id;
+  const dotHref = `/vakil/${canonicalId}?c=${call.conversationId}`;
+
   return (
     <div className="surface fixed right-3 bottom-3 left-3 z-50 overflow-hidden shadow-elevated sm:right-5 sm:bottom-5 sm:left-auto sm:w-[340px]">
       <div className="dot-grid flex items-center gap-3 border-b border-black/[0.06] bg-popover px-4 py-3">
         <Dot3DLazy look={dot.look} status={pose} size={64} />
         <div className="min-w-0 flex-1">
-          <Link href={`/dots/${dot.id}?c=${call.conversationId}`} className="block truncate text-[15px] font-medium">
+          <Link href={dotHref} className="block truncate text-[15px] font-medium">
             {dot.name}
           </Link>
           <div className="flex items-center gap-1.5 font-mono text-[10px] tracking-wider uppercase">
@@ -48,7 +51,7 @@ export default function VoicePanel() {
         {!call.error && !lines.length && (
           <p className="text-body-sm text-foreground/45">
             Talk naturally. Everything you both say is saved in the{" "}
-            <Link href={`/dots/${dot.id}?c=${call.conversationId}`} className="underline underline-offset-2 hover:text-foreground">
+            <Link href={dotHref} className="underline underline-offset-2 hover:text-foreground">
               chat
             </Link>
             , and {dot.name} can take on tasks while you talk.

@@ -351,6 +351,7 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
   const appModel = await modelFor(dot.model, userId);
   const { client, model, stateless, useCompletionsAPI } = clientFor(appModel, userId);
   const searchTool = stateless ? statelessSearchTool(appModel) : "openai";
+  const promptOpts = { hasWebSearch: searchTool === "openai" || searchTool === "openrouter" };
   const tools: Tool[] = [
     ...toolsForDot(dot, userId).map((t): Tool => ({ type: "function", name: t.name, description: t.description, parameters: t.parameters, strict: !stateless && t.strict !== false })),
     // OpenRouter's server-side search: the model decides when to search, same as OpenAI's web_search.
@@ -369,17 +370,17 @@ async function respond(dot: Dot, prevId: string | null, input: ResponseInputItem
 
   // NVIDIA NIM only supports /v1/chat/completions, not /v1/responses.
   if (useCompletionsAPI) {
-    const final = await respondViaCompletionsWithRetry(client, model, systemPrompt(dot, trigger), [...history, ...input], tools, dot, signal);
+    const final = await respondViaCompletionsWithRetry(client, model, systemPrompt(dot, trigger, promptOpts), [...history, ...input], tools, dot, signal);
     if (stateless) repo.setHistory(dot.id, trimHistory([...history, ...input.filter((i) => !isGuardItem(i)), ...replayable(final.output)]));
     return final;
   }
 
   const stream = await client.responses.create(
     stateless
-      ? { model, instructions: systemPrompt(dot, trigger), input: [...history, ...input], tools, parallel_tool_calls: false, store: false, stream: true }
+      ? { model, instructions: systemPrompt(dot, trigger, promptOpts), input: [...history, ...input], tools, parallel_tool_calls: false, store: false, stream: true }
       : {
           model,
-          instructions: systemPrompt(dot, trigger),
+          instructions: systemPrompt(dot, trigger, promptOpts),
           input,
           previous_response_id: prevId ?? undefined,
           tools,
@@ -465,12 +466,18 @@ function toChatMessages(systemInstruction: string, items: ResponseInputItem[]): 
         out.push({ role: "system", content: typeof item.content === "string" ? item.content : "" });
       }
     } else if (item.type === "function_call") {
-      // Tool call made by the model
-      out.push({
-        role: "assistant",
-        content: null,
-        tool_calls: [{ id: item.call_id, type: "function", function: { name: item.name, arguments: item.arguments } }],
-      });
+      // Tool call made by the model. Group consecutive calls into a single assistant message.
+      const tc = { id: item.call_id, type: "function" as const, function: { name: item.name, arguments: item.arguments } };
+      const last = out[out.length - 1];
+      if (last && last.role === "assistant" && Array.isArray((last as { tool_calls?: unknown[] }).tool_calls)) {
+        (last as { tool_calls: unknown[] }).tool_calls.push(tc);
+      } else {
+        out.push({
+          role: "assistant",
+          content: null,
+          tool_calls: [tc],
+        });
+      }
     } else if (item.type === "function_call_output") {
       if (!item.call_id) continue;
       out.push({ role: "tool", tool_call_id: item.call_id, content: String(item.output) });
@@ -553,7 +560,7 @@ async function respondViaCompletions(
         for (const tc of delta.tool_calls) {
           const idx = tc.index ?? 0;
           if (!toolCallAccumulators[idx]) {
-            toolCallAccumulators[idx] = { id: tc.id ?? "", name: tc.function?.name ?? "", arguments: "" };
+            toolCallAccumulators[idx] = { id: "", name: "", arguments: "" };
           }
           if (tc.id) toolCallAccumulators[idx].id = tc.id;
           if (tc.function?.name) toolCallAccumulators[idx].name += tc.function.name;
@@ -751,7 +758,7 @@ async function processCalls(dot: Dot, pending: Pending, signal: AbortSignal): Pr
         });
       }
     }
-    pending.outputs.push({ type: "function_call_output", call_id: call.call_id, output: await execTool(dot, call, signal) });
+    pending.outputs.push({ type: "function_call_output", call_id: call.call_id, output: await execTool(dot, call, signal, repo.currentConversation(dot.id) || undefined) });
   }
   savePending(dot.id, pending);
   return false;
@@ -764,13 +771,13 @@ function pauseFor(dot: Dot, pending: Pending, card: CardData): true {
   return true;
 }
 
-async function execTool(dot: Dot, call: ResponseFunctionToolCall, signal: AbortSignal): Promise<string> {
+async function execTool(dot: Dot, call: ResponseFunctionToolCall, signal: AbortSignal, conversationId?: string): Promise<string> {
   const def = findTool(call.name, uidOf(dot.id))!;
   const args = safeParse(call.arguments);
   repo.setActivity(dot.id, def.label);
   activity(dot.id, def.label, summarize(args));
   try {
-    return await def.execute!(args, { dot, signal, depth: 0, userId: uidOf(dot.id) });
+    return await def.execute!(args, { dot, signal, depth: 0, userId: uidOf(dot.id), conversationId: conversationId || repo.currentConversation(dot.id) || undefined });
   } catch (err) {
     if (signal.aborted) throw err;
     return `Error: ${err instanceof Error ? err.message : String(err)}`;
@@ -829,13 +836,14 @@ setConsult(async (target, message, from, _depth, signal) => {
       { role: "user", content: `${from.name} asks: ${message}` },
     ];
     const consultTools: Tool[] = stateless ? [] : [{ type: "web_search" } as Tool];
+    const consultPromptOpts = { hasWebSearch: !useCompletionsAPI };
     // NIM doesn't support /v1/responses — fall back to chat completions.
     const res = useCompletionsAPI
-      ? await respondViaCompletionsWithRetry(client, model, systemPrompt(target, { kind: "dot", from: from.name }), consultInput, consultTools, target, signal)
+      ? await respondViaCompletionsWithRetry(client, model, systemPrompt(target, { kind: "dot", from: from.name }, consultPromptOpts), consultInput, consultTools, target, signal)
       : await client.responses.create(
           {
             model,
-            instructions: systemPrompt(target, { kind: "dot", from: from.name }),
+            instructions: systemPrompt(target, { kind: "dot", from: from.name }, consultPromptOpts),
             input: consultInput,
             tools: [stateless ? ({ type: "openrouter:web_search" } as unknown as Tool) : { type: "web_search" }],
             ...(stateless ? { store: false } : isReasoningModel(model) ? { reasoning: { effort: "low" as const } } : {}),

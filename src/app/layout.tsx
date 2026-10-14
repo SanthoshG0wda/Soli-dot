@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono, Newsreader } from "next/font/google";
 import localFont from "next/font/local";
+import { getSessionUser } from "@/lib/auth";
 import AppFrame from "@/components/AppFrame";
 import "./globals.css";
 
@@ -15,22 +16,23 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Soli",
-  description: "Personal AI agents that work on their own, on their own computers",
+  title: "Soli — Autonomous Legal AI for Indian Advocates & Law Firms",
+  description: "Research Supreme Court precedents, draft court-margin pleadings, audit case files for contradictions, and coordinate chamber practice with 4 specialized legal agents.",
 };
 
 export const viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover" as const,
-  themeColor: "#faf7f1",
+  themeColor: "#09090c",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = await getSessionUser();
   return (
     <html lang="en" className={`${geistSans.variable} ${jetbrainsMono.variable} ${newsreader.variable} h-full`}>
       <body className="flex h-full overflow-hidden">
-        <AppFrame>{children}</AppFrame>
+        <AppFrame hasUser={Boolean(user)}>{children}</AppFrame>
       </body>
     </html>
   );

@@ -56,7 +56,8 @@ const without = <T extends { id: string }>(list: T[], id: string) => list.filter
 
 export function activeDotId(): string | null {
   if (typeof window === "undefined") return null;
-  return window.location.pathname.match(/^\/dots\/([^/?#]+)/)?.[1] ?? null;
+  const id = window.location.pathname.match(/^\/(?:dots|vakil)\/([^/?#]+)/)?.[1];
+  return id ? (id.startsWith("dot_") ? id.replace(/^dot_/, "vakil_") : id) : null;
 }
 
 function loadLastRead(): Record<string, number> {
@@ -81,6 +82,26 @@ export function dismissToast(id: number) {
 
 export function setActiveArtifact(id: string | null) {
   set({ activeArtifactId: id });
+}
+
+export function deleteConversationLocally(id: string) {
+  set({
+    conversations: without(state.conversations, id),
+    messages: state.messages.filter((m) => m.conversationId !== id),
+  });
+}
+
+export function renameConversationLocally(id: string, title: string) {
+  set({
+    conversations: state.conversations.map((c) => (c.id === id ? { ...c, title } : c)),
+  });
+}
+
+export function moveConversationLocally(id: string, dotId: string) {
+  set({
+    conversations: state.conversations.map((c) => (c.id === id ? { ...c, dotId } : c)),
+    messages: state.messages.map((m) => (m.conversationId === id ? { ...m, dotId } : m)),
+  });
 }
 
 function apply(ev: ServerEvent) {
@@ -167,8 +188,9 @@ function notify(dotId: string, title: string, body: string) {
     n.onclick = () => {
       window.focus();
       // Native notification click runs outside React, so there is no router here.
+      const canonicalId = dotId.startsWith("dot_") ? dotId.replace(/^dot_/, "vakil_") : dotId;
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.href = `/dots/${dotId}`;
+      window.location.href = `/vakil/${canonicalId}`;
     };
   }
   const toast = { id: ++toastSeq, dotId, title, body };

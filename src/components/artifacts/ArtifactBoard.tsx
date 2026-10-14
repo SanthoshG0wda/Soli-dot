@@ -125,8 +125,8 @@ export function ArtifactBoard({
 
   return (
     <div
-      style={!fullscreen && isDesktop ? { width: `${width}px` } : undefined}
-      className={`relative flex flex-col border-l border-black/10 bg-background shrink-0 ${
+      style={!fullscreen && isDesktop ? { width: `${width}px`, maxWidth: "calc(100% - 320px)" } : undefined}
+      className={`relative flex min-w-0 flex-col border-l border-black/10 bg-background shrink-0 overflow-hidden ${
         fullscreen
           ? "fixed inset-0 z-50 bg-background"
           : "h-full w-full lg:max-w-[85vw]"
@@ -164,22 +164,22 @@ export function ArtifactBoard({
         </div>
       )}
       {/* Board Header */}
-      <header className="relative flex h-14 shrink-0 items-center justify-between border-b border-black/10 bg-card px-4">
+      <header className="relative flex h-14 shrink-0 items-center justify-between gap-2 border-b border-black/10 bg-card px-3 sm:px-4 min-w-0 overflow-hidden">
         {/* Document Switcher / Title */}
-        <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand-readable">
             <Icon className="size-4" strokeWidth={2} />
           </span>
 
-          <div className="relative min-w-0">
+          <div className="min-w-0 flex-1">
             {convArtifacts.length > 1 ? (
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setShowDropdown(!showDropdown)}
-                  className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left transition-colors hover:bg-black/[0.05]"
+                  className="flex max-w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left transition-colors hover:bg-black/[0.05]"
                 >
-                  <span className="max-w-[200px] sm:max-w-[280px] truncate text-[14px] font-semibold text-foreground">
+                  <span className="truncate text-[13px] sm:text-[14px] font-semibold text-foreground">
                     {current.title}
                   </span>
                   <ChevronDown className="size-3.5 shrink-0 text-foreground/45" />
@@ -216,7 +216,7 @@ export function ArtifactBoard({
                 )}
               </div>
             ) : (
-              <h3 className="max-w-[240px] sm:max-w-[340px] truncate text-[14px] font-semibold text-foreground">
+              <h3 className="truncate text-[13px] sm:text-[14px] font-semibold text-foreground">
                 {current.title}
               </h3>
             )}
@@ -229,17 +229,17 @@ export function ArtifactBoard({
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           {/* Download dropdown or direct download buttons */}
           {current.pdfFileId && (
             <a
               href={`/api/files/${current.pdfFileId}?download=1`}
               download
-              className="btn-secondary h-8 px-2.5 text-[12px] inline-flex items-center gap-1.5"
+              className="btn-secondary h-8 px-2 sm:px-2.5 text-[12px] inline-flex items-center gap-1.5 shrink-0"
               title="Download PDF"
             >
               <Download className="size-3.5" />
-              <span className="hidden sm:inline">PDF</span>
+              <span className="hidden md:inline">PDF</span>
             </a>
           )}
 
@@ -247,11 +247,11 @@ export function ArtifactBoard({
             <a
               href={`/api/files/${current.docxFileId}?download=1`}
               download
-              className="btn-secondary h-8 px-2.5 text-[12px] inline-flex items-center gap-1.5"
+              className="btn-secondary h-8 px-2 sm:px-2.5 text-[12px] inline-flex items-center gap-1.5 shrink-0"
               title="Download Word (.docx)"
             >
               <Download className="size-3.5" />
-              <span className="hidden sm:inline">Word</span>
+              <span className="hidden md:inline">Word</span>
             </a>
           )}
 
@@ -259,7 +259,7 @@ export function ArtifactBoard({
             <button
               type="button"
               onClick={onResetWidth}
-              className="btn-quiet size-8 p-0"
+              className="btn-quiet size-8 p-0 shrink-0"
               title="Reset split view to 50/50"
               aria-label="50/50 split"
             >
@@ -270,7 +270,7 @@ export function ArtifactBoard({
           <button
             type="button"
             onClick={() => setFullscreen(!fullscreen)}
-            className="btn-quiet size-8 p-0"
+            className="btn-quiet size-8 p-0 shrink-0"
             title={fullscreen ? "Restore split view" : "Maximize board"}
             aria-label="Maximize"
           >
@@ -280,7 +280,7 @@ export function ArtifactBoard({
           <button
             type="button"
             onClick={handleClose}
-            className="btn-quiet size-8 p-0 hover:bg-black/[0.06]"
+            className="btn-quiet size-8 p-0 shrink-0 hover:bg-black/[0.06]"
             title="Close Artifact Board"
             aria-label="Close"
           >
