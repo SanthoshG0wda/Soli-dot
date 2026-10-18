@@ -3,7 +3,6 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/token";
 
 const PROTECTED_PREFIXES = [
-  "/admin",
   "/apps",
   "/channels",
   "/dots",
@@ -55,15 +54,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-    // Tell the header which admin section is active (e.g. "corpus", "evals", "models", "plans", "users").
-    const requestHeaders = new Headers(request.headers);
-    const segment = pathname.split("/")[2] || "corpus";
-    requestHeaders.set("x-admin-area", segment);
-    return NextResponse.next({
-      request: { headers: requestHeaders },
-    });
-  }
 
   return NextResponse.next();
 }
@@ -71,7 +61,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/",
-    "/admin/:path*",
     "/apps/:path*",
     "/channels/:path*",
     "/dots/:path*",

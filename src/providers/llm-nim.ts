@@ -10,10 +10,10 @@ export class NimLLMProvider implements LLMProvider {
   private readonly openai;
 
   constructor() {
-    this.modelId = env.NIM_LLM_MODEL;
+    this.modelId = process.env.CUSTOM_LLM_MODEL || env.NIM_LLM_MODEL;
     this.openai = createOpenAI({
-      baseURL: env.NIM_BASE_URL,
-      apiKey: env.NVIDIA_API_KEY,
+      baseURL: process.env.CUSTOM_LLM_BASE_URL || env.NIM_BASE_URL,
+      apiKey: process.env.CUSTOM_LLM_API_KEY || env.NVIDIA_API_KEY,
     });
   }
 

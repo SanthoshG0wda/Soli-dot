@@ -151,7 +151,7 @@ export default function SettingsView() {
             <div className="surface mb-3 flex items-center gap-3 p-4">
               <div className="flex-1">
                 <div className="text-[14px]">Default model</div>
-                <div className="text-body-sm text-foreground/55">Your personal fallback. The deployment default for everyone lives in the admin console.</div>
+                <div className="text-body-sm text-foreground/55">Your personal fallback default model.</div>
               </div>
               <ModelPicker allowDefault={false} value={computer.model || null} onChange={(m) => start(() => setDefaultModel(m))} />
             </div>

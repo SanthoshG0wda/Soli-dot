@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const backend = process.env.BACKEND_URL || "http://localhost:4000";
+
 const nextConfig: NextConfig = {
   // The desktop app ships .next/standalone: a minimal server.js plus only the node_modules it needs.
   output: "standalone",
@@ -10,8 +12,16 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        source: "/api/backend/:path*",
+        destination: `${backend}/api/:path*`,
+      },
+      {
         source: "/api/vakil/:path*",
         destination: "/api/dots/:path*",
+      },
+      {
+        source: "/api/legal/:path*",
+        destination: `${backend}/api/legal/:path*`,
       },
     ];
   },

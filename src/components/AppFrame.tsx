@@ -6,7 +6,6 @@ import Sidebar from "@/components/Sidebar";
 import Toasts from "@/components/Toasts";
 import VoicePanel from "@/components/VoicePanel";
 import MobileBar, { FloatingSidebarTrigger } from "@/components/MobileBar";
-import AdminFrame from "@/components/AdminFrame";
 
 const AUTH_PATHS = new Set(["/login", "/signup", "/landing"]);
 
@@ -20,14 +19,17 @@ export default function AppFrame({
   const pathname = usePathname();
   const isLanding = (pathname === "/" && !hasUser) || pathname === "/landing";
   const authPage = AUTH_PATHS.has(pathname) || isLanding;
-  const isAdmin = pathname.startsWith("/admin");
 
   if (authPage) {
-    return <main className="min-h-screen w-full flex-1 overflow-y-auto bg-background">{children}</main>;
-  }
-
-  if (isAdmin) {
-    return <AdminFrame>{children}</AdminFrame>;
+    return (
+      <main
+        className={`min-h-screen w-full flex-1 overflow-y-auto ${
+          isLanding ? "landing-scrollbar bg-[#090806]" : "bg-background"
+        }`}
+      >
+        {children}
+      </main>
+    );
   }
 
   return (

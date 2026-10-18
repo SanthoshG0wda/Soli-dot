@@ -1,6 +1,5 @@
 import { getSessionUser } from "@/lib/auth";
-import { listArtifacts } from "@/server/repo";
-import { createDocumentArtifact } from "@/server/documents";
+import { BACKEND_URL } from "@/lib/backend-client";
 
 export async function GET(req: Request) {
   const user = await getSessionUser();
@@ -8,9 +7,16 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const convId = url.searchParams.get("conversationId");
+  const q = new URLSearchParams({ userId: user.id });
+  if (convId) q.set("conversationId", convId);
 
-  const artifacts = listArtifacts(user.id, convId);
-  return Response.json({ artifacts });
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/artifacts?${q.toString()}`);
+    const data = await res.json();
+    return Response.json(data);
+  } catch (err: any) {
+    return Response.json({ error: err.message }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
@@ -19,45 +25,14 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const {
-      dotId,
-      conversationId,
-      messageId,
-      title,
-      filename,
-      kind = "markdown",
-      content,
-      summary,
-      metadata,
-    } = body;
-
-    if (!dotId || !title || !content) {
-      return new Response("Missing required fields (dotId, title, content)", { status: 400 });
-    }
-
-    const result = await createDocumentArtifact({
-      dotId,
-      conversationId: conversationId || undefined,
-      userId: user.id,
-      title,
-      filename: filename || `${title.toLowerCase().replace(/[^a-z0-9]+/g, "_")}.md`,
-      kind,
-      content,
-      summary,
-      metadata,
-      generatePdf: true,
-      generateDocx: true,
-      notifyInChat: messageId ? false : true,
+    const res = await fetch(`${BACKEND_URL}/api/artifacts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...body, userId: user.id }),
     });
-
-    if (messageId) {
-      const { updateMessage } = await import("@/server/repo");
-      updateMessage(messageId, { artifactId: result.artifact.id });
-    }
-
-    return Response.json(result);
-  } catch (err) {
-    console.error("Artifact creation error:", err);
-    return new Response(err instanceof Error ? err.message : "Internal Server Error", { status: 500 });
+    const data = await res.json();
+    return Response.json(data, { status: res.status });
+  } catch (err: any) {
+    return Response.json({ error: err.message }, { status: 500 });
   }
 }

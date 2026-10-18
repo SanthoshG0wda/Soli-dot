@@ -16,7 +16,8 @@ function createClient(): { db: Database; sql: postgres.Sql } {
   const sql = postgres(env.DATABASE_URL, {
     max: env.NODE_ENV === "production" ? 10 : 5,
     idle_timeout: 20,
-    connect_timeout: 10,
+    connect_timeout: 30,
+    prepare: false,
   });
   const db = drizzle(sql, { schema });
   return { db, sql };

@@ -1,18 +1,23 @@
-import { userInput, type UserInput } from "@/server/computer";
-import { ownerOfDot } from "@/server/repo";
-import { isDotId } from "@/server/validate";
+import { BACKEND_URL } from "@/lib/backend-client";
 import { getSessionUser } from "@/lib/auth";
 
-// One mouse / keyboard / navigation event from the Computer tab's live view.
-export async function POST(req: Request, ctx: RouteContext<"/api/dots/[id]/input">) {
-  const { id } = await ctx.params;
-  if (!isDotId(id)) return Response.json({ error: "Invalid dot id." }, { status: 400 });
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
   const user = await getSessionUser();
-  if (!user || ownerOfDot(id) !== user.id) return Response.json({ error: "Not found." }, { status: 404 });
+  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
   try {
-    await userInput(id, (await req.json()) as UserInput);
+    const body = await req.json();
+    await fetch(`${BACKEND_URL}/api/dots/${encodeURIComponent(id)}/input`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
     return new Response(null, { status: 204 });
-  } catch (err) {
-    return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+  } catch (err: any) {
+    return Response.json({ error: err.message }, { status: 500 });
   }
 }

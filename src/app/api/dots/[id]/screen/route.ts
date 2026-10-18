@@ -1,16 +1,24 @@
-import { lastScreenshot, screenshot } from "@/server/computer";
-import { ownerOfDot } from "@/server/repo";
-import { isDotId } from "@/server/validate";
+import { BACKEND_URL } from "@/lib/backend-client";
 import { getSessionUser } from "@/lib/auth";
 
-// Latest frame of the dot's screen. `?fresh=1` captures a new one.
-export async function GET(req: Request, ctx: RouteContext<"/api/dots/[id]/screen">) {
-  const { id } = await ctx.params;
-  if (!isDotId(id)) return new Response("Invalid dot id.", { status: 400 });
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
   const user = await getSessionUser();
-  if (!user || ownerOfDot(id) !== user.id) return new Response("Not found.", { status: 404 });
-  const fresh = new URL(req.url).searchParams.get("fresh") === "1";
-  const shot = fresh ? await screenshot(id).catch(() => null) : await lastScreenshot(id);
-  if (!shot) return new Response(null, { status: 204 });
-  return new Response(new Uint8Array(shot), { headers: { "Content-Type": "image/png", "Cache-Control": "no-store" } });
+  if (!user) return new Response("Unauthorized", { status: 401 });
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/dots/${encodeURIComponent(id)}/screen`, {
+      signal: req.signal,
+    });
+    if (!res.ok) return new Response(null, { status: 204 });
+    const blob = await res.blob();
+    return new Response(blob, {
+      headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+    });
+  } catch {
+    return new Response(null, { status: 204 });
+  }
 }

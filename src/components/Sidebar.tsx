@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Archive, ArchiveRestore, ChevronRight, Ellipsis, FolderInput, Globe, LayoutGrid, LogOut, PanelLeftClose, Pencil, Pin, PinOff, Plus, Search, Settings, Shield, SquarePen, Trash2, Upload, X } from "lucide-react";
+import { Archive, ArchiveRestore, ChevronRight, Ellipsis, FolderInput, Globe, LayoutGrid, LogOut, PanelLeftClose, Pencil, Pin, PinOff, Plus, Search, Settings, SquarePen, Trash2, Upload, X } from "lucide-react";
 import { deleteConversation, moveConversation, renameConversation } from "@/app/actions";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { deleteConversationLocally, markRead, moveConversationLocally, renameConversationLocally, useStore } from "@/lib/store";
@@ -49,7 +49,6 @@ export default function Sidebar() {
   const [searching, setSearching] = useState(false);
   const [q, setQ] = useState("");
   const [confirming, setConfirming] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [, start] = useTransition();
 
   // ── Conversation options menu (Rename / Pin / Share / Archive / Delete / Move) ──
@@ -86,6 +85,10 @@ export default function Sidebar() {
   useEffect(() => {
     if (!menuOpenId) return;
     const onDown = (e: PointerEvent) => {
+      // If clicking a kebab trigger button, allow its own onClick to toggle
+      if ((e.target as HTMLElement)?.closest?.("[data-conv-trigger]")) {
+        return;
+      }
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpenId(null);
         setMoveOpen(false);
@@ -106,15 +109,6 @@ export default function Sidebar() {
     };
   }, [menuOpenId]);
 
-  useEffect(() => {
-    fetch("/api/auth/me", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j: unknown) => {
-        const role = (j as { user?: { role?: unknown } } | null)?.user?.role;
-        if (role === "admin") setIsAdmin(true);
-      })
-      .catch(() => {});
-  }, []);
 
   const dotHref = (dotId: string, convId?: string): string => {
     const canonicalId = dotId.startsWith("dot_") ? dotId.replace(/^dot_/, "vakil_") : dotId;
@@ -331,7 +325,7 @@ export default function Sidebar() {
           {q && <div className="eyebrow shrink-0 px-4 pt-2 pb-1.5">Chats matching “{q}”</div>}
           <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
             {!loaded && <div className="px-2 py-2 text-body-sm text-foreground/45">Connecting…</div>}
-            {recent.map((c) => {
+            {recent.map((c, index) => {
               const d = dotById.get(c.dotId);
               if (!d) return null;
               if (confirming === c.id) {
@@ -352,8 +346,18 @@ export default function Sidebar() {
               const archived = archivedIds.includes(c.id);
               const menuOpen = menuOpenId === c.id;
               const renaming = renamingId === c.id;
+              const openUpwards = index >= recent.length - 2 && recent.length > 2;
               return (
-              <div key={c.id} className={`motion-card group relative flex items-center rounded-xl transition-colors ${c.id === activeConv ? "bg-card shadow-sm ring-1 ring-black/[0.04]" : "hover:bg-black/[0.03]"}`}>
+                <div
+                  key={c.id}
+                  className={`group relative flex items-center rounded-xl transition-colors ${
+                    menuOpen ? "z-40" : "z-0 hover:z-10"
+                  } ${
+                    c.id === activeConv
+                      ? "bg-card shadow-sm ring-1 ring-black/[0.04]"
+                      : "hover:bg-black/[0.03]"
+                  }`}
+                >
                   <Link href={dotHref(d.id, c.id)} onClick={() => markRead(d.id)} className="flex min-w-0 flex-1 items-center gap-3 px-2.5 py-2.5">
                     <DotOrb look={d.look} status={d.status} size={42} />
                     <span className="min-w-0 flex-1">
@@ -389,8 +393,16 @@ export default function Sidebar() {
                   </Link>
                   {/* Kebab → conversation options */}
                   <button
-                    className={`absolute top-2 right-2 flex size-6 items-center justify-center rounded text-foreground/40 hover:bg-black/[0.05] hover:text-foreground ${menuOpen ? "flex" : "hidden group-hover:flex"}`}
-                    onClick={() => (setMenuOpenId(menuOpen ? null : c.id), setMoveOpen(false))}
+                    data-conv-trigger={c.id}
+                    className={`absolute top-2 right-2 z-20 flex size-6 items-center justify-center rounded text-foreground/40 hover:bg-black/[0.05] hover:text-foreground ${
+                      menuOpen ? "flex text-foreground" : "hidden group-hover:flex"
+                    }`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setMenuOpenId(menuOpen ? null : c.id);
+                      setMoveOpen(false);
+                    }}
                     aria-label={`Options for ${c.title}`}
                     aria-expanded={menuOpen}
                     title="Options"
@@ -398,7 +410,13 @@ export default function Sidebar() {
                     <Ellipsis className="size-4" strokeWidth={1.75} />
                   </button>
                   {menuOpen && (
-                    <div ref={menuRef} data-conv-menu className="absolute top-9 right-1 z-50 w-52 overflow-hidden rounded-xl border border-white/10 bg-[#212121] py-1.5 text-[#ececec] shadow-[0_16px_48px_-8px_rgba(0,0,0,0.5)] animate-page-rise">
+                    <div
+                      ref={menuRef}
+                      data-conv-menu
+                      className={`absolute right-1 z-50 w-52 overflow-hidden rounded-xl border border-white/10 bg-[#212121] py-1.5 text-[#ececec] shadow-[0_16px_48px_-8px_rgba(0,0,0,0.65)] animate-page-rise ${
+                        openUpwards ? "bottom-8" : "top-9"
+                      }`}
+                    >
                       <MenuItem
                         icon={<Pencil className="size-4" strokeWidth={1.75} />}
                         label="Rename"
@@ -442,7 +460,11 @@ export default function Sidebar() {
                                 <button
                                   key={x.id}
                                   type="button"
-                                  onClick={() => move(c, x.id)}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    move(c, x.id);
+                                  }}
                                   className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-[13.5px] transition-colors hover:bg-white/10"
                                 >
                                   <DotOrb look={x.look} status={x.status} size={20} />
@@ -479,16 +501,6 @@ export default function Sidebar() {
 
           {/* Bottom */}
           <div className="flex shrink-0 items-center gap-2 p-3">
-            {isAdmin && (
-              <Link
-                href="/admin/corpus"
-                className={`flex size-10 shrink-0 items-center justify-center rounded-full border transition-colors ${pathname.startsWith("/admin") ? "border-foreground bg-card" : "border-black/10 hover:border-black/25"}`}
-                title="Admin console"
-                aria-label="Admin console"
-              >
-                <Shield className="size-4" strokeWidth={1.5} />
-              </Link>
-            )}
             <Link
               href="/apps"
               className={`flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full border text-[13px] transition-colors ${pathname === "/apps" ? "border-foreground bg-card" : "border-black/10 hover:border-black/25"}`}
@@ -528,7 +540,11 @@ function MenuItem({ icon, label, onClick, danger = false, trailing }: { icon: Re
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick();
+      }}
       className={`flex w-full items-center gap-2.5 px-4 py-2 text-left text-[13.5px] transition-colors hover:bg-white/10 ${danger ? "text-[#f87171]" : ""}`}
     >
       <span className="shrink-0 opacity-80">{icon}</span>

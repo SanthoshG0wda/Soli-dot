@@ -1,18 +1,19 @@
-import { liveUrl } from "@/server/computer";
-import { ownerOfDot } from "@/server/repo";
-import { isDotId } from "@/server/validate";
+import { BACKEND_URL } from "@/lib/backend-client";
 import { getSessionUser } from "@/lib/auth";
 
-// Live-view URL for a dot's cloud computer (wakes it if it's asleep). `?interactive=1` for take-over.
-export async function GET(req: Request, ctx: RouteContext<"/api/dots/[id]/live">) {
-  const { id } = await ctx.params;
-  if (!isDotId(id)) return Response.json({ url: null, error: "Invalid dot id." }, { status: 400 });
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
   const user = await getSessionUser();
-  if (!user || ownerOfDot(id) !== user.id) return Response.json({ url: null, error: "Not found." }, { status: 404 });
-  const interactive = new URL(req.url).searchParams.get("interactive") === "1";
+  if (!user) return Response.json({ url: null, error: "Unauthorized" }, { status: 401 });
+
   try {
-    return Response.json({ url: await liveUrl(id, interactive) });
-  } catch (err) {
-    return Response.json({ url: null, error: err instanceof Error ? err.message : String(err) });
+    const res = await fetch(`${BACKEND_URL}/api/dots/${encodeURIComponent(id)}/live`);
+    const data = await res.json();
+    return Response.json(data);
+  } catch (err: any) {
+    return Response.json({ url: null, error: err.message });
   }
 }

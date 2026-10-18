@@ -8,18 +8,17 @@ import {
   type RagResponse,
 } from "@/lib/rag/rag";
 import { llmProvider } from "@/providers";
-import { effectiveRagLimits } from "@/server/limits";
-
+const DEFAULT_RAG_LIMITS = {
+  topK: 5,
+  minScore: 0.65,
+  contextMaxChars: 1200,
+  chunkMaxChars: 800,
+  temperature: 0.2,
+};
 const model = llmProvider.model();
 
-/**
- * Production RAG pipeline wiring: retrieval over Qdrant via
- * `retrieveRelevantChunks` and a NIM-hosted language model. Limits come from
- * the admin console (deployment-global SQLite overrides) with env fallbacks,
- * so firm admins can tune retrieval without redeploying.
- */
 function buildDeps(): RagDeps {
-  const limits = effectiveRagLimits();
+  const limits = DEFAULT_RAG_LIMITS;
   return {
     defaultLimit: limits.topK,
     defaultMinScore: limits.minScore,

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import DotView, { type Tab } from "@/components/DotView";
-import * as repo from "@/server/repo";
+import { fetchDot } from "@/lib/backend-client";
 
 export default async function Page({
   params,
@@ -15,9 +15,9 @@ export default async function Page({
 
   // Resolve ID whether passed as vakil_... or dot_...
   const dot =
-    repo.getDot(id) ||
-    (id.startsWith("dot_") ? repo.getDot(id.replace(/^dot_/, "vakil_")) : null) ||
-    (id.startsWith("vakil_") ? repo.getDot(id.replace(/^vakil_/, "dot_")) : null);
+    (await fetchDot(id)) ||
+    (id.startsWith("dot_") ? await fetchDot(id.replace(/^dot_/, "vakil_")) : null) ||
+    (id.startsWith("vakil_") ? await fetchDot(id.replace(/^vakil_/, "dot_")) : null);
 
   if (dot && id !== dot.id) {
     const qs = new URLSearchParams();

@@ -391,7 +391,7 @@ export function InteractiveProductMockup() {
               </div>
 
               {/* Legal Document Paper Page */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex justify-center bg-[#101016]">
+              <div className="landing-scrollbar flex-1 overflow-y-auto p-4 sm:p-6 flex justify-center bg-[#101016]">
                 <div
                   className="landing-scan-panel w-full max-w-[620px] rounded-sm bg-[#faf8f4] text-[#1c1813] shadow-2xl p-6 sm:p-8 font-serif text-[12.5px] leading-[1.65] border border-amber-900/10 min-h-[520px] relative transition-transform duration-200"
                   style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: "top center" }}

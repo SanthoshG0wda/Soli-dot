@@ -5,15 +5,6 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { createSession, loginSchema, verifyPassword } from "@/lib/auth";
-import { setUserSetting } from "@/server/db";
-import { models } from "@/server/agent/client";
-import {
-  addMessage,
-  claimUnowned,
-  createConversation,
-  createDot,
-  listDots,
-} from "@/server/repo";
 import { env } from "@/env";
 import { DEFAULT_LOOK } from "@/lib/look";
 
@@ -102,43 +93,6 @@ export async function POST(request: Request): Promise<NextResponse> {
   failedLogins.delete(realIp);
 
   await createSession(row.id);
-  // Mirror the Postgres role locally so sync model-resolution code can tell
-  // operators apart from regular users (personal keys/defaults are operator-only).
-  setUserSetting(row.id, "role", row.role === "admin" ? "admin" : "user");
-  // First login after the per-user upgrade claims the previously shared data.
-  claimUnowned(row.id);
-  // Warm this user's model list in the background (fills the model pickers).
-  void models(row.id).catch(() => {});
-
-  // Demo seed: on first boot with DEMO_SEED=1, create a demo dot + sample
-  // conversation so a fresh account can ask a question without visiting Settings.
-  // Admins are skipped — they get the console, not the demo matter.
-  // Uses the SQLite repo (dots live there, not in Postgres). Failures must
-  // never block login.
-  if (env.DEMO_SEED === "1" && row.role !== "admin") {
-    try {
-      if (listDots(row.id).length === 0) {
-        const demoDot = createDot({
-          name: "Nyaya (Demo)",
-          purpose: "Demo matter for client presentation",
-          instructions:
-            "You are Nyaya, a legal assistant helping with a demo matter about consumer rights.",
-          look: DEFAULT_LOOK,
-          userId: row.id,
-        });
-        const demoConv = createConversation(demoDot.id, "Consumer Rights Demo");
-        addMessage({
-          dotId: demoDot.id,
-          role: "user",
-          text: "I'm looking for information about consumer rights protection for a demo case.",
-          title: "Consumer Rights",
-          conversationId: demoConv.id,
-        });
-      }
-    } catch {
-      // Seed is best-effort only.
-    }
-  }
 
   return NextResponse.json({
     user: { id: row.id, name: row.name, email: row.email },

@@ -104,6 +104,19 @@ export function moveConversationLocally(id: string, dotId: string) {
   });
 }
 
+export function addMessageLocally(message: Message) {
+  set({ messages: upsert(state.messages, message) });
+  for (const l of messageListeners) l(message);
+}
+
+export function removeMessageLocally(id: string) {
+  set({ messages: without(state.messages, id) });
+}
+
+export function addConversationLocally(conversation: any) {
+  set({ conversations: upsert(state.conversations, conversation) });
+}
+
 function apply(ev: ServerEvent) {
   switch (ev.type) {
     case "snapshot": {
@@ -200,7 +213,14 @@ function notify(dotId: string, title: string, body: string) {
 
 function connect() {
   source = new EventSource("/api/events");
-  source.onmessage = (e) => apply(JSON.parse(e.data) as ServerEvent);
+  source.onmessage = (e) => {
+    if (!e.data || e.data.startsWith(":") || e.data.trim() === "ping") return;
+    try {
+      apply(JSON.parse(e.data) as ServerEvent);
+    } catch {
+      // Ignore keep-alive or malformed frames gracefully
+    }
+  };
   source.onerror = () => set({ connected: false }); // EventSource reconnects and receives a fresh snapshot
 }
 

@@ -1,28 +1,34 @@
-import path from "node:path";
-import { listFiles, readFile } from "@/server/computer";
-import { guessMime } from "@/server/files";
-import { ownerOfDot } from "@/server/repo";
-import { isDotId } from "@/server/validate";
+import { BACKEND_URL } from "@/lib/backend-client";
 import { getSessionUser } from "@/lib/auth";
 
-// The dot's workspace: GET lists files; GET ?path=… downloads one.
-export async function GET(req: Request, ctx: RouteContext<"/api/dots/[id]/workspace">) {
-  const { id } = await ctx.params;
-  if (!isDotId(id)) return Response.json({ files: [], error: "Invalid dot id." }, { status: 400 });
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
   const user = await getSessionUser();
-  if (!user || ownerOfDot(id) !== user.id) return Response.json({ files: [], error: "Not found." }, { status: 404 });
-  const p = new URL(req.url).searchParams.get("path");
+  if (!user) return Response.json({ files: [], error: "Unauthorized" }, { status: 401 });
+
+  const url = new URL(req.url);
+  const p = url.searchParams.get("path");
+
   try {
-    if (!p) return Response.json({ files: await listFiles(id) });
-    const data = await readFile(id, p);
-    return new Response(new Uint8Array(data), {
-      headers: {
-        "Content-Type": guessMime(p),
-        "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(path.basename(p))}`,
-        "X-Content-Type-Options": "nosniff",
-      },
-    });
-  } catch (err) {
-    return Response.json({ files: [], error: err instanceof Error ? err.message : String(err) }, { status: p ? 404 : 200 });
+    const q = p ? `?path=${encodeURIComponent(p)}` : "";
+    const backendRes = await fetch(`${BACKEND_URL}/api/dots/${encodeURIComponent(id)}/workspace${q}`);
+    if (!backendRes.ok) return Response.json({ files: [], error: "Workspace error" }, { status: backendRes.status });
+
+    if (p) {
+      return new Response(backendRes.body, {
+        headers: {
+          "Content-Type": backendRes.headers.get("content-type") || "application/octet-stream",
+          "Content-Disposition": backendRes.headers.get("content-disposition") || "attachment",
+        },
+      });
+    }
+
+    const data = await backendRes.json();
+    return Response.json(data);
+  } catch (err: any) {
+    return Response.json({ files: [], error: err.message }, { status: 500 });
   }
 }

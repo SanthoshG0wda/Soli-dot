@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ComponentPropsWithoutRef } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Copy, Check, Printer, FileText, Scale, BookOpen } from "lucide-react";
@@ -8,24 +8,26 @@ import type { DocumentArtifact } from "@/lib/types";
 
 export type PreviewMode = "court_paper" | "markdown" | "pdf_view";
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
 const markdownComponents = {
-  table: ({ node, ...props }: any) => (
+  table: ({ node, ...props }: ComponentPropsWithoutRef<"table"> & { node?: unknown }) => (
     <div className="my-4 w-full overflow-x-auto rounded-xl border border-black/10 bg-black/[0.01]">
       <table className="w-full min-w-[520px] border-collapse text-left text-[13px]" {...props} />
     </div>
   ),
-  th: ({ node, ...props }: any) => (
+  th: ({ node, ...props }: ComponentPropsWithoutRef<"th"> & { node?: unknown }) => (
     <th className="border-b border-black/10 bg-black/[0.03] px-3.5 py-2.5 font-semibold text-foreground/85 text-[12px] uppercase tracking-wider whitespace-nowrap" {...props} />
   ),
-  td: ({ node, ...props }: any) => (
+  td: ({ node, ...props }: ComponentPropsWithoutRef<"td"> & { node?: unknown }) => (
     <td className="border-b border-black/[0.06] px-3.5 py-2.5 text-foreground/90 align-top text-[13px] leading-relaxed" {...props} />
   ),
-  pre: ({ node, ...props }: any) => (
+  pre: ({ node, ...props }: ComponentPropsWithoutRef<"pre"> & { node?: unknown }) => (
     <div className="my-3 w-full overflow-x-auto rounded-lg bg-black/[0.04] p-3 text-[12px]">
       <pre className="whitespace-pre-wrap break-words" {...props} />
     </div>
   ),
 };
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 export function DocumentPreview({ artifact }: { artifact: DocumentArtifact }) {
   const isLegal = artifact.kind === "legal_paper" || artifact.kind === "contract";

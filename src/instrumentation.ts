@@ -1,10 +1,6 @@
 export async function register() {
+  // Backend services (boot, scheduler, SQLite, event bus) run in standalone soli-backend service.
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    try {
-      const { boot } = await import("./server/boot");
-      boot();
-    } catch (err) {
-      console.warn("[instrumentation] Boot sequence encountered non-fatal error:", err);
-    }
+    console.log("[soli-web] Web frontend initialized. Backend connected at", process.env.BACKEND_URL || "http://localhost:4000");
   }
 }

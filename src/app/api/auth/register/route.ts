@@ -10,9 +10,6 @@ import {
   signupPolicy,
   signupSchema,
 } from "@/lib/auth";
-import { models } from "@/server/agent/client";
-import { setUserSetting } from "@/server/db";
-import { claimUnowned } from "@/server/repo";
 
 interface SignupRequestBody {
   name?: unknown;
@@ -89,11 +86,5 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   await createSession(user.id);
-  // Mirror the role locally (see login route: personal keys/defaults are operator-only).
-  setUserSetting(user.id, "role", user.role === "admin" ? "admin" : "user");
-  // A brand-new account on an upgraded install claims the previously shared data.
-  claimUnowned(user.id);
-  // Warm this user's model list in the background (fills the model pickers).
-  void models(user.id).catch(() => {});
   return NextResponse.json({ user }, { status: 201 });
 }

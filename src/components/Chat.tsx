@@ -11,12 +11,20 @@ import {
   Terminal, X, Scale, Copy, ThumbsUp, ThumbsDown, RotateCcw,
 } from "lucide-react";
 import { confirmConnectCard, resolveCard, resumeDot, sendMessage, startConversation, startVoiceConversation } from "@/app/actions";
-import { mergeMessages, setActiveArtifact, useStore } from "@/lib/store";
+import {
+  addConversationLocally,
+  addMessageLocally,
+  mergeMessages,
+  removeMessageLocally,
+  setActiveArtifact,
+  useStore,
+} from "@/lib/store";
 import { startCall } from "@/lib/voiceCall";
 import DotOrb from "./DotOrb";
 import { ArtifactBoard, ArtifactCard } from "./artifacts";
 import { detectLegalDocument } from "@/lib/artifacts/detector";
 import { getPersonaByName, getSuggestionsForDot } from "@/lib/personas";
+import { parseToolCalls, toolIcon } from "@/lib/tool-calls";
 import type { Attachment, Dot, Message } from "@/lib/types";
 
 // ── History loader ───────────────────────────────────────────────────────────
@@ -45,11 +53,26 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
   const router = useRouter();
   const all = useStore((s) => s.messages);
   const conversations = useStore((s) => s.conversations);
+  const [activeConvId, setActiveConvId] = useState<string | null>(null);
+
   const mine = useMemo(
-    () => conversations.filter((c) => c.dotId === dot.id).sort((a, b) => b.updatedAt - a.updatedAt),
+    () =>
+      conversations
+        .filter(
+          (c) =>
+            c.dotId === dot.id ||
+            (dot.id.startsWith("vakil_") && c.dotId === dot.id.replace(/^vakil_/, "dot_")) ||
+            (dot.id.startsWith("dot_") && c.dotId === dot.id.replace(/^dot_/, "vakil_")),
+        )
+        .sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt)),
     [conversations, dot.id],
   );
-  const convId = conversation === "new" ? null : conversation ?? mine[0]?.id ?? null;
+
+  const convId =
+    conversation === "new"
+      ? activeConvId
+      : conversation ?? activeConvId ?? mine[0]?.id ?? null;
+
   // Belt and braces: never render content-less dot rows (blank streaming
   // placeholders). The server no longer persists them; this hides stragglers.
   const messages = useMemo(
@@ -57,12 +80,13 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
       convId
         ? all.filter(
             (m) =>
-              m.conversationId === convId &&
+              (m.conversationId === convId ||
+                (!m.conversationId && (m.dotId === dot.id || m.dotId === dot.id.replace(/^vakil_/, "dot_")))) &&
               !m.channelId &&
               (m.role !== "dot" || m.title || m.attachments?.length || (m.text.trim() !== "" && m.text.trim() !== "…")),
           )
         : [],
-    [all, convId],
+    [all, convId, dot.id],
   );
   const activeArtifactId = useStore((s) => s.activeArtifactId);
   const artifacts = useStore((s) => s.artifacts);
@@ -80,23 +104,78 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
 
   const fresh = !messages.some((m) => m.role === "user" || m.from === "voice");
   const shown = fresh && messages[0]?.role === "dot" ? messages.slice(1) : messages;
-  const workingHere = submitting || (dot.status === "working" && (convId === mine[0]?.id || !convId));
+  const hasActiveDotOutput =
+    messages[messages.length - 1]?.role === "dot" &&
+    (messages[messages.length - 1]?.text || "").trim().length > 0;
+  const workingHere =
+    (submitting || (dot.status === "working" && (convId === mine[0]?.id || !convId))) &&
+    !hasActiveDotOutput;
 
   const send = (text: string, attachments: Attachment[] = []) => {
     setSendError(null);
     setSubmitting(true);
+
+    const isFresh = !convId;
+    const targetConvId = convId ?? `conv_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+    if (isFresh) {
+      setActiveConvId(targetConvId);
+      addConversationLocally({
+        id: targetConvId,
+        dotId: dot.id,
+        title: text.slice(0, 40) || "New consultation",
+        userId: "",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    }
+
+    // 1. Immediately inject optimistic user message so the prompt bubble renders with 0ms latency
+    const tempUserId = `temp-${Date.now()}`;
+    const optimisticUserMsg: Message = {
+      id: tempUserId,
+      dotId: dot.id,
+      conversationId: targetConvId,
+      role: "user",
+      text,
+      attachments,
+      createdAt: Date.now(),
+    };
+    addMessageLocally(optimisticUserMsg);
+
     start(async () => {
       try {
+        let result:
+          | { userMessage?: Message; assistantMessage?: Message; conversationId?: string }
+          | undefined;
+
         if (convId) {
-          await sendMessage(dot.id, text, attachments, convId);
+          result = await sendMessage(dot.id, text, attachments, targetConvId);
         } else {
           const canonicalId = dot.id.startsWith("dot_") ? dot.id.replace(/^dot_/, "vakil_") : dot.id;
-          const newId = await startConversation(dot.id, text, attachments);
-          router.replace(`/vakil/${canonicalId}?c=${newId}`);
+          const startRes = await startConversation(dot.id, text, attachments, targetConvId);
+          result = startRes;
+          router.replace(`/vakil/${canonicalId}?c=${targetConvId}`);
+        }
+
+        // 2. Once the server responds, seamlessly replace the optimistic temporary message
+        // and immediately render the assistant's response in the UI
+        removeMessageLocally(tempUserId);
+        if (result?.userMessage) {
+          addMessageLocally({ ...result.userMessage, conversationId: targetConvId });
+        }
+        if (result?.assistantMessage) {
+          addMessageLocally({ ...result.assistantMessage, conversationId: targetConvId });
         }
       } catch (err) {
         console.error("Failed to send message:", err);
-        setSendError(err instanceof Error ? err.message : "Failed to send message. Please try again.");
+        removeMessageLocally(tempUserId);
+        const raw = err instanceof Error ? err.message : "";
+        const isNetworkErr = /connection|fetch|failed to fetch|econnrefused|network|abort/i.test(raw);
+        setSendError(
+          isNetworkErr
+            ? "The legal intelligence service is momentarily reconnecting. Please try again in a few moments."
+            : "Unable to send your message. Please try again."
+        );
       } finally {
         setSubmitting(false);
       }
@@ -229,8 +308,15 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
           </div>
         )}
 
-        {/* Scrollable message column — fresh chats center like ChatGPT, threads pin to newest */}
-        <div className="flex min-w-0 flex-1 flex-col-reverse overflow-y-auto overflow-x-hidden">
+        {/* Scrollable message column — threads pin to newest via column-reverse.
+            Fresh chats have nothing to pin, and reversing there anchors the
+            scroll to the wrong end (clipping the welcome heading), so they
+            lay out normally and scroll from the top. */}
+        <div
+          className={`flex min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden ${
+            fresh ? "" : "flex-col-reverse"
+          }`}
+        >
           <div className={`flex min-h-full min-w-0 shrink-0 flex-col px-4 sm:px-6 ${fresh ? "justify-center" : ""}`}>
             {!fresh && <div className="flex-1" />}
             {fresh && <div className="min-h-6 flex-1" />}
@@ -249,7 +335,15 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
                   {(i === 0 || m.createdAt - shown[i - 1].createdAt > 60 * 60_000) && (
                     <DateSeparator ts={m.createdAt} />
                   )}
-                  <MessageRow m={m} dot={dot} />
+                  <MessageRow
+                    m={m}
+                    dot={dot}
+                    isStreaming={
+                      m.role === "dot" &&
+                      i === shown.length - 1 &&
+                      (submitting || dot.status === "working")
+                    }
+                  />
                 </div>
               ))}
 
@@ -640,7 +734,17 @@ const ACTIVITY_ICON: [RegExp, typeof Globe][] = [
 
 // ── MessageRow ───────────────────────────────────────────────────────────────
 /** One chat line. In channels, `showName` labels which dot wrote it. */
-export function MessageRow({ m, dot, showName = false }: { m: Message; dot: Dot; showName?: boolean }) {
+export function MessageRow({
+  m,
+  dot,
+  showName = false,
+  isStreaming = false,
+}: {
+  m: Message;
+  dot: Dot;
+  showName?: boolean;
+  isStreaming?: boolean;
+}) {
   const artifacts = useStore((s) => s.artifacts);
 
   // ── User bubble (right-aligned, pill shape, dark background) ────────────
@@ -707,6 +811,14 @@ export function MessageRow({ m, dot, showName = false }: { m: Message; dot: Dot;
     (att) => !artifactObj || (att.id !== artifactObj.fileId && att.id !== artifactObj.pdfFileId && att.id !== artifactObj.docxFileId),
   ) ?? [];
 
+  // Raw `TOOL <name> {json}` dumps arrive as plain text — pull them out and
+  // render as quiet chips so the answer reads as prose, not a stack trace.
+  const { prose, tools } = useMemo(
+    () => (m.role === "dot" && m.text ? parseToolCalls(m.text) : { prose: m.text || "", tools: [] as ReturnType<typeof parseToolCalls>["tools"] }),
+    [m.role, m.text],
+  );
+  const hasProse = prose.replace(/[…\s]/g, "") !== "";
+
   return (
     <div className="flex gap-3 animate-message-rise">
       {/* Avatar: always shown in direct chats too, matches Claude's layout */}
@@ -724,9 +836,43 @@ export function MessageRow({ m, dot, showName = false }: { m: Message; dot: Dot;
           </div>
         )}
 
-        <div className="dot-prose">
-          <Markdown remarkPlugins={[remarkGfm]}>{m.text || "…"}</Markdown>
-        </div>
+        {!!tools.length && (
+          <div className="mb-2.5 flex flex-wrap gap-1.5">
+            {tools.map((t, i) => {
+              const Icon = toolIcon(t.tool);
+              return (
+                <span
+                  key={`${t.tool}-${i}`}
+                  className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-black/10 bg-popover px-2.5 py-1 text-[12px] text-foreground/60"
+                  title={t.detail ? `${t.label} — ${t.detail}` : t.label}
+                >
+                  <Icon className="size-3.5 shrink-0 text-brand" strokeWidth={2} />
+                  <span className="truncate">{t.label}</span>
+                  {t.detail && (
+                    <span className="max-w-[16ch] truncate font-mono text-[11px] text-foreground/40">{t.detail}</span>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
+        {hasProse && (
+          <div className="dot-prose">
+            <Markdown remarkPlugins={[remarkGfm]}>{prose}</Markdown>
+            {isStreaming && (
+              <span className="ml-1 inline-block h-3.5 w-1.5 rounded-xs bg-brand animate-pulse align-middle" />
+            )}
+          </div>
+        )}
+        {!hasProse && !tools.length && (
+          <div className="dot-prose">
+            <Markdown remarkPlugins={[remarkGfm]}>{m.text || "…"}</Markdown>
+            {isStreaming && (
+              <span className="ml-1 inline-block h-3.5 w-1.5 rounded-xs bg-brand animate-pulse align-middle" />
+            )}
+          </div>
+        )}
 
         {matchedArtifactId ? (
           <ArtifactCard artifactId={matchedArtifactId} />
