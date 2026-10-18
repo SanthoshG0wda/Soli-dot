@@ -31,6 +31,9 @@ RUN pnpm install --frozen-lockfile --prod=false
 FROM base AS builder
 WORKDIR /app
 
+ENV SKIP_ENV_VALIDATION=1
+ENV SESSION_SECRET="build-phase-placeholder-secret-at-least-32-chars-long"
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
