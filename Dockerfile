@@ -18,8 +18,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 FROM base AS deps
 WORKDIR /app
 
-# Copy dependency manifests
-COPY package.json pnpm-lock.yaml ./
+# Copy dependency manifests and pnpm workspace configuration
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# Ensure dependencies with lifecycle scripts (esbuild, unrs-resolver) are approved
+RUN pnpm approve-builds --all || true
 
 # Install all dependencies (frozen lockfile for reproducible builds)
 RUN pnpm install --frozen-lockfile --prod=false
