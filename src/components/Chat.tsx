@@ -75,19 +75,34 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
 
   // Belt and braces: never render content-less dot rows (blank streaming
   // placeholders). The server no longer persists them; this hides stragglers.
-  const messages = useMemo(
-    () =>
-      convId
-        ? all.filter(
-            (m) =>
-              (m.conversationId === convId ||
-                (!m.conversationId && (m.dotId === dot.id || m.dotId === dot.id.replace(/^vakil_/, "dot_")))) &&
-              !m.channelId &&
-              (m.role !== "dot" || m.title || m.attachments?.length || (m.text.trim() !== "" && m.text.trim() !== "…")),
-          )
-        : [],
-    [all, convId, dot.id],
-  );
+  const messages = useMemo(() => {
+    if (!convId) return [];
+    const filtered = all.filter(
+      (m) =>
+        (m.conversationId === convId ||
+          (!m.conversationId && (m.dotId === dot.id || m.dotId === dot.id.replace(/^vakil_/, "dot_")))) &&
+        !m.channelId &&
+        (m.role !== "dot" || m.title || m.attachments?.length || (m.text.trim() !== "" && m.text.trim() !== "…")),
+    );
+
+    // Deduplicate consecutive identical user messages (e.g. from rapid double-submits)
+    const deduped: Message[] = [];
+    for (let i = 0; i < filtered.length; i++) {
+      const cur = filtered[i];
+      const prev = deduped[deduped.length - 1];
+      if (
+        prev &&
+        prev.role === "user" &&
+        cur.role === "user" &&
+        prev.text.trim() === cur.text.trim() &&
+        Math.abs(cur.createdAt - prev.createdAt) < 120_000
+      ) {
+        continue;
+      }
+      deduped.push(cur);
+    }
+    return deduped;
+  }, [all, convId, dot.id]);
   const activeArtifactId = useStore((s) => s.activeArtifactId);
   const artifacts = useStore((s) => s.artifacts);
   const convArtifacts = useMemo(
@@ -112,6 +127,7 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
     !hasActiveDotOutput;
 
   const send = (text: string, attachments: Attachment[] = []) => {
+    if (submitting) return;
     setSendError(null);
     setSubmitting(true);
 
@@ -129,10 +145,10 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
       });
     }
 
-    // 1. Immediately inject optimistic user message so the prompt bubble renders with 0ms latency
-    const tempUserId = `temp-${Date.now()}`;
-    const optimisticUserMsg: Message = {
-      id: tempUserId,
+    // 1. Immediately inject user message using its deterministic message id
+    const userMsgId = `msg-${crypto.randomUUID()}`;
+    const userMsg: Message = {
+      id: userMsgId,
       dotId: dot.id,
       conversationId: targetConvId,
       role: "user",
@@ -140,7 +156,7 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
       attachments,
       createdAt: Date.now(),
     };
-    addMessageLocally(optimisticUserMsg);
+    addMessageLocally(userMsg);
 
     start(async () => {
       try {
@@ -149,26 +165,20 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
           | undefined;
 
         if (convId) {
-          result = await sendMessage(dot.id, text, attachments, targetConvId);
+          result = await sendMessage(dot.id, text, attachments, targetConvId, userMsgId);
         } else {
           const canonicalId = dot.id.startsWith("dot_") ? dot.id.replace(/^dot_/, "vakil_") : dot.id;
-          const startRes = await startConversation(dot.id, text, attachments, targetConvId);
+          const startRes = await startConversation(dot.id, text, attachments, targetConvId, userMsgId);
           result = startRes;
           router.replace(`/vakil/${canonicalId}?c=${targetConvId}`);
         }
 
-        // 2. Once the server responds, seamlessly replace the optimistic temporary message
-        // and immediately render the assistant's response in the UI
-        removeMessageLocally(tempUserId);
-        if (result?.userMessage) {
-          addMessageLocally({ ...result.userMessage, conversationId: targetConvId });
-        }
         if (result?.assistantMessage) {
           addMessageLocally({ ...result.assistantMessage, conversationId: targetConvId });
         }
       } catch (err) {
         console.error("Failed to send message:", err);
-        removeMessageLocally(tempUserId);
+        removeMessageLocally(userMsgId);
         const raw = err instanceof Error ? err.message : "";
         const isNetworkErr = /connection|fetch|failed to fetch|econnrefused|network|abort/i.test(raw);
         setSendError(
@@ -580,7 +590,7 @@ function Composer({ dot, onSend, onVoice, submitting = false, draft = null }: { 
 
   const submit = () => {
     const value = text.trim();
-    if ((!value && !ready.length) || busy) return;
+    if ((!value && !ready.length) || busy || submitting || pending) return;
     setText("");
     setUploads([]);
     onSend(value, ready);

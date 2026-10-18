@@ -38,10 +38,10 @@ export async function backendFetch<T = any>(
 }
 
 // ---------------- Agent Execution ----------------
-export async function sendAgentMessage(dotId: string, text: string, userId?: string, conversationId?: string) {
+export async function sendAgentMessage(dotId: string, text: string, userId?: string, conversationId?: string, messageId?: string) {
   return backendFetch("/api/agent/message", {
     method: "POST",
-    body: JSON.stringify({ dotId, text, userId, conversationId }),
+    body: JSON.stringify({ dotId, text, userId, conversationId, messageId }),
   });
 }
 

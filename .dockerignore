@@ -6,3 +6,9 @@ dist
 electron
 .env*
 *.log
+.vscode
+.idea
+*.tsbuildinfo
+Dockerfile*
+docker-compose*
+README.md

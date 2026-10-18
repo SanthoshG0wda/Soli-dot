@@ -70,12 +70,13 @@ export async function sendMessage(
   dotId: string,
   text: string,
   attachments: Attachment[] = [],
-  conversationId?: string
+  conversationId?: string,
+  messageId?: string
 ) {
   if (!text.trim() && !attachments.length) return;
   const user = await caller();
 
-  const res = await sendAgentMessage(dotId, text.trim(), user.id, conversationId);
+  const res = await sendAgentMessage(dotId, text.trim(), user.id, conversationId, messageId);
   return {
     userMessage: res?.userMessage,
     assistantMessage: res?.assistantMessage,
@@ -87,7 +88,8 @@ export async function startConversation(
   dotId: string,
   text: string,
   attachments: Attachment[] = [],
-  customConvId?: string
+  customConvId?: string,
+  messageId?: string
 ) {
   const user = await caller();
   const conv = await createBackendConversation(
@@ -96,7 +98,7 @@ export async function startConversation(
     user.id,
     customConvId
   );
-  const res = await sendAgentMessage(dotId, text.trim(), user.id, conv.id);
+  const res = await sendAgentMessage(dotId, text.trim(), user.id, conv.id, messageId);
   return {
     conversationId: conv.id,
     conversation: conv,
