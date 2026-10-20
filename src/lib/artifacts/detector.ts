@@ -161,23 +161,23 @@ export function detectLegalDocument(text: string): DetectedDocument | null {
     };
   }
 
-  // Detect long structured markdown documents with clear heading (skip simple chat lists/advice)
-  if (
-    text.length > 500 &&
-    /^#+\s+/m.test(text) &&
-    !/^(?:Here('s| is)|Sure|Certainly|Below is|You can|As requested|Regarding your question|What to do next)/i.test(text.trim())
-  ) {
+  // Detect formal agreements, contracts, deeds, or affidavits with standard operative clauses
+  const hasAgreement = /AGREEMENT\b|CONTRACT\b|POWER OF ATTORNEY|DEED OF|MEMORANDUM OF UNDERSTANDING/i.test(text);
+  const hasFormalClauses = /WHEREAS|NOW THEREFORE|IN WITNESS WHEREOF|COVENANTS|INDEMNITY|CONFIDENTIALITY|TERMINATION/i.test(text);
+
+  if (hasAgreement && hasFormalClauses) {
     const cleaned = cleanDocumentContent(text);
+    let title = "Legal Agreement";
     const headerMatch = cleaned.match(/^#+\s+(.+)$/m);
-    if (headerMatch && !/^\d+\.\s*(?:Fill|Send|Draft|Wait|Contact)/i.test(headerMatch[1].trim())) {
-      const heading = headerMatch[1].replace(/[*_`]/g, "").trim();
-      return {
-        isLegalDoc: false,
-        title: heading.slice(0, 80),
-        kind: "markdown",
-        content: cleaned,
-      };
+    if (headerMatch) {
+      title = headerMatch[1].replace(/[*_`]/g, "").trim();
     }
+    return {
+      isLegalDoc: true,
+      title: title.slice(0, 80),
+      kind: "contract",
+      content: cleaned,
+    };
   }
 
   return null;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { Message, ServerEvent, Snapshot } from "./types";
+import type { DocumentArtifact, Message, ServerEvent, Snapshot } from "./types";
 
 // One client-side store fed by the server's event stream. Components read it with
 // useSyncExternalStore; the EventSource opens on first subscription. No effects needed.
@@ -82,6 +82,13 @@ export function dismissToast(id: number) {
 
 export function setActiveArtifact(id: string | null) {
   set({ activeArtifactId: id });
+}
+
+export function addArtifactLocally(artifact: DocumentArtifact) {
+  set({
+    artifacts: upsert(state.artifacts, artifact),
+    activeArtifactId: artifact.id,
+  });
 }
 
 export function deleteConversationLocally(id: string) {

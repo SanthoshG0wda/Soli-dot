@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { confirmConnectCard, resolveCard, resumeDot, sendMessage, startConversation, startVoiceConversation } from "@/app/actions";
 import {
+  addArtifactLocally,
   addConversationLocally,
   addMessageLocally,
   mergeMessages,
@@ -982,7 +983,9 @@ function DetectedDocCard({
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.artifact?.id) {
+        if (data.artifact) {
+          addArtifactLocally(data.artifact);
+        } else if (data.artifact?.id) {
           setActiveArtifact(data.artifact.id);
         }
       }

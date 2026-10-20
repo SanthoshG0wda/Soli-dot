@@ -11,7 +11,7 @@ import {
   ChevronDown,
   Columns2,
 } from "lucide-react";
-import { setActiveArtifact, useStore } from "@/lib/store";
+import { addArtifactLocally, setActiveArtifact, useStore } from "@/lib/store";
 import { DocumentPreview } from "./DocumentPreview";
 
 export function ArtifactBoard({
@@ -31,6 +31,7 @@ export function ArtifactBoard({
   const artifacts = useStore((s) => s.artifacts);
   const [fullscreen, setFullscreen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [loadingActive, setLoadingActive] = useState(false);
 
   // Resizable width state with localStorage persistence (fallback when standalone)
   const [internalWidth, setInternalWidth] = useState<number>(() => {
@@ -58,12 +59,32 @@ export function ArtifactBoard({
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  // Fetch active artifact if activeId is set but not yet loaded into client store
+  useEffect(() => {
+    if (activeId && !artifacts.some((a) => a.id === activeId)) {
+      setLoadingActive(true);
+      fetch(`/api/artifacts/${encodeURIComponent(activeId)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.artifact) {
+            addArtifactLocally(data.artifact);
+          }
+        })
+        .catch((err) => console.error("Failed to load active artifact:", err))
+        .finally(() => setLoadingActive(false));
+    }
+  }, [activeId, artifacts]);
+
   // Filter artifacts for current conversation if available, or all artifacts
   const convArtifacts = conversationId
     ? artifacts.filter((a) => a.conversationId === conversationId)
     : artifacts;
 
-  const current = convArtifacts.find((a) => a.id === activeId) || convArtifacts[0];
+  // Always resolve to activeId first regardless of conversation filter
+  const current =
+    (activeId ? artifacts.find((a) => a.id === activeId) : null) ||
+    convArtifacts.find((a) => a.id === activeId) ||
+    convArtifacts[0];
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
@@ -113,7 +134,25 @@ export function ArtifactBoard({
     }
   };
 
-  if (!current) return null;
+  if (!current) {
+    if (loadingActive) {
+      return (
+        <div
+          style={!fullscreen && isDesktop ? { width: `${width}px`, maxWidth: "calc(100% - 320px)" } : undefined}
+          className="relative flex min-w-0 flex-col border-l border-black/10 bg-background shrink-0 overflow-hidden h-full w-full lg:max-w-[85vw] p-6 animate-pulse"
+        >
+          <div className="h-6 w-48 rounded bg-black/10 mb-4" />
+          <div className="h-4 w-32 rounded bg-black/5 mb-8" />
+          <div className="space-y-3">
+            <div className="h-4 w-full rounded bg-black/5" />
+            <div className="h-4 w-5/6 rounded bg-black/5" />
+            <div className="h-4 w-4/6 rounded bg-black/5" />
+          </div>
+        </div>
+      );
+    }
+    return null;
+  }
 
   const handleClose = () => {
     setActiveArtifact(null);
