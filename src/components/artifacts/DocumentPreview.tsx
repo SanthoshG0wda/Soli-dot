@@ -130,22 +130,11 @@ export function DocumentPreview({ artifact }: { artifact: DocumentArtifact }) {
           </div>
         ) : mode === "court_paper" ? (
           <div className="mx-auto w-full max-w-[760px] rounded-xl border border-black/10 bg-[#fdfcf9] px-4 py-6 sm:px-10 sm:py-12 text-[#1a1a1a] shadow-md font-serif overflow-hidden">
-            {/* Legal paper watermark / stamp bar */}
-            <div className="mb-6 flex items-center justify-between gap-2 border-b border-black/10 pb-3 font-mono text-[11px] text-foreground/40 uppercase min-w-0">
-              <span className="shrink-0">SOLI COURT DRAFT</span>
-              <span className="truncate text-right">{artifact.metadata?.act as string || "INDIAN STATUTORY JURISDICTION"}</span>
-            </div>
-
-            {/* Document body rendered with court formatting */}
+            {/* Document body rendered with authentic court formatting */}
             <div className="court-paper-prose space-y-4 text-[14px] leading-[1.8] text-[#1c1c1c] overflow-hidden break-words">
               <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                 {artifact.content}
               </Markdown>
-            </div>
-
-            {/* Court Footer Rule */}
-            <div className="mt-12 border-t border-black/10 pt-4 text-center font-mono text-[10px] text-foreground/40 uppercase tracking-widest">
-              — End of Petition / Drafted with Soli Legal Intelligence —
             </div>
           </div>
         ) : (

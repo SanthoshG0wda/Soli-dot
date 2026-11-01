@@ -13,6 +13,9 @@ export async function POST(
     const formData = await req.formData();
     const res = await fetch(`${BACKEND_URL}/api/dots/${encodeURIComponent(id)}/files`, {
       method: "POST",
+      headers: {
+        "x-user-id": user.id,
+      },
       body: formData,
     });
     const data = await res.json();

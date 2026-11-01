@@ -57,18 +57,18 @@ export function LoginForm({ next }: { next?: string }) {
   }
 
   return (
-    <div className="surface shadow-elevated animate-auth-rise p-7 sm:p-8">
-      <p className="eyebrow">Welcome back</p>
-      <h2 className="text-h1 mt-2">Log in to Soli</h2>
-      <p className="text-body-sm mt-1.5 text-foreground/55">
-        Access your matters, legal research, and firm assistants.
+    <div className="animate-auth-rise rounded-2xl border border-white/10 bg-[#222220] p-7 shadow-[0_24px_70px_-28px_rgba(0,0,0,0.8)] sm:p-8">
+      <p className="font-mono text-[11px] tracking-wider text-[#db7a5c] uppercase">Welcome back</p>
+      <h2 className="mt-3 font-serif text-[32px] leading-none tracking-[-0.04em] text-[#f1efea]">Log in to Soli</h2>
+      <p className="mt-3 text-[14px] leading-relaxed text-white/55">
+        Access your matters, research, and legal documents.
       </p>
 
       <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4" noValidate={false}>
         <div>
           <label
             htmlFor="login-email"
-            className="mb-1.5 block font-sans text-[13px] font-medium text-foreground"
+            className="mb-1.5 block font-sans text-[13px] font-medium text-white/85"
           >
             Work email
           </label>
@@ -87,7 +87,7 @@ export function LoginForm({ next }: { next?: string }) {
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@firm.com"
               aria-invalid={error ? true : undefined}
-              className="field h-11 pl-9"
+              className="field auth-field h-11 border-white/10 bg-[#1c1c1b] pl-9"
             />
           </div>
         </div>
@@ -96,7 +96,7 @@ export function LoginForm({ next }: { next?: string }) {
           <div className="mb-1.5 flex items-baseline justify-between">
             <label
               htmlFor="login-password"
-              className="block font-sans text-[13px] font-medium text-foreground"
+              className="block font-sans text-[13px] font-medium text-white/85"
             >
               Password
             </label>
@@ -120,7 +120,7 @@ export function LoginForm({ next }: { next?: string }) {
               placeholder="Your password"
               aria-invalid={error ? true : undefined}
               aria-describedby={error ? "login-error" : undefined}
-              className="field h-11 pr-11 pl-9"
+              className="field auth-field h-11 border-white/10 bg-[#1c1c1b] pr-11 pl-9"
             />
             <button
               type="button"
@@ -152,7 +152,7 @@ export function LoginForm({ next }: { next?: string }) {
         <button
           type="submit"
           disabled={pending}
-          className="btn-brand group h-11 w-full text-[15px]"
+          className="btn-brand group h-11 w-full text-[15px] shadow-[0_12px_28px_-12px_rgba(219,122,92,0.8)]"
         >
           {pending ? (
             <>

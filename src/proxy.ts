@@ -3,13 +3,10 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/token";
 
 const PROTECTED_PREFIXES = [
-  "/apps",
-  "/channels",
   "/dots",
   "/new",
   "/settings",
-  "/api/apps",
-  "/api/composio",
+  "/connections",
   "/api/conversations",
   "/api/dots",
   "/api/vakil",
@@ -61,14 +58,11 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/",
-    "/apps/:path*",
-    "/channels/:path*",
     "/dots/:path*",
     "/vakil/:path*",
     "/new/:path*",
     "/settings/:path*",
-    "/api/apps/:path*",
-    "/api/composio/:path*",
+    "/connections/:path*",
     "/api/conversations/:path*",
     "/api/dots/:path*",
     "/api/vakil/:path*",

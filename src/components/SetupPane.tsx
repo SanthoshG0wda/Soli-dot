@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
 import * as actions from "@/app/actions";
 import { useStore } from "@/lib/store";
-import LookEditor from "./LookEditor";
-import { DotTriggers } from "./Triggers";
 import Dot3DLazy from "./Dot3DLazy";
 import { Empty, PageHeader, RemoveButton, RuleEditor, Section } from "./SettingsKit";
 import { LEGAL_PERSONAS } from "@/lib/personas";
@@ -89,13 +87,10 @@ export default function SetupPane({ dot }: { dot: Dot }) {
                   placeholder="Tone, preferences, things to always or never do…"
                 />
               </div>
-              <div className="pt-2">
-                <LookEditor look={look} onChange={setLook} />
-              </div>
             </div>
             <div className="flex flex-col items-center gap-3 lg:sticky lg:top-6 lg:self-start">
               <div className="dot-grid surface flex w-full justify-center py-2">
-                <Dot3DLazy look={look} size={190} stage />
+                <Dot3DLazy look={look} size={190} name={name} stage />
               </div>
               <button className="btn-primary w-full" disabled={!dirty || pending} onClick={() => start(() => actions.updateDot(dot.id, { name, purpose, instructions, look }))}>
                 {dirty ? "Save changes" : "Saved"}
@@ -175,9 +170,6 @@ export default function SetupPane({ dot }: { dot: Dot }) {
           </div>
         </Section>
 
-        <Section eyebrow="Automation" title="Triggers" description={`Wake ${dot.name} when something happens in your apps, like a new email or a Slack mention. It runs in its own chat and still asks before sending anything.`}>
-          <DotTriggers dot={dot} />
-        </Section>
 
         <Section eyebrow="Memory" title="What it knows about you" description={`${dot.name} adds to this as you work together. Remove anything that's wrong.`}>
           <div className="space-y-3">

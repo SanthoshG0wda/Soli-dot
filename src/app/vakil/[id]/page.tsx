@@ -7,11 +7,11 @@ export default async function Page({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; c?: string }>;
+  searchParams: Promise<{ tab?: string; c?: string; matter?: string }>;
 }) {
   const { id } = await params;
-  const { tab, c } = await searchParams;
-  const current: Tab = tab === "computer" || tab === "setup" ? tab : "chat";
+  const { tab, c, matter } = await searchParams;
+  const current: Tab = tab === "setup" ? "setup" : "chat";
 
   // Resolve ID whether passed as vakil_... or dot_...
   const dot =
@@ -29,5 +29,5 @@ export default async function Page({
 
   const actualId = dot ? dot.id : id;
 
-  return <DotView dotId={actualId} tab={current} conversation={typeof c === "string" ? c : undefined} />;
+  return <DotView dotId={actualId} tab={current} conversation={typeof c === "string" ? c : undefined} matterId={typeof matter === "string" ? matter : undefined} />;
 }

@@ -379,25 +379,6 @@ export const routines = pgTable(
   (table) => [index("routines_user_idx").on(table.userId)],
 );
 
-export const triggers = pgTable(
-  "triggers",
-  {
-    id: text("id").primaryKey(),
-    dotId: text("dot_id").notNull(),
-    userId: text("user_id").notNull().default(""),
-    composioId: text("composio_id").notNull(),
-    slug: text("slug").notNull(),
-    toolkit: text("toolkit").notNull(),
-    name: text("name").notNull(),
-    config: text("config").notNull(),
-    instruction: text("instruction").notNull(),
-    enabled: integer("enabled").notNull().default(1),
-    lastFiredAt: bigint("last_fired_at", { mode: "number" }),
-    lastError: text("last_error"),
-    createdAt: bigint("created_at", { mode: "number" }).notNull(),
-  },
-  (table) => [index("triggers_user_idx").on(table.userId)],
-);
 
 export const dotFiles = pgTable(
   "dot_files",
@@ -415,18 +396,6 @@ export const dotFiles = pgTable(
   (table) => [index("dot_files_user_idx").on(table.userId)],
 );
 
-export const channels = pgTable(
-  "channels",
-  {
-    id: text("id").primaryKey(),
-    userId: text("user_id").notNull().default(""),
-    name: text("name").notNull(),
-    leadId: text("lead_id").notNull(),
-    members: text("members").notNull(),
-    createdAt: bigint("created_at", { mode: "number" }).notNull(),
-  },
-  (table) => [index("channels_user_idx").on(table.userId)],
-);
 
 export const settings = pgTable(
   "settings",
@@ -441,18 +410,6 @@ export const settings = pgTable(
   ],
 );
 
-export const passwords = pgTable(
-  "passwords",
-  {
-    id: text("id").primaryKey(),
-    userId: text("user_id").notNull().default(""),
-    site: text("site").notNull(),
-    username: text("username").notNull(),
-    secret: text("secret").notNull(),
-    createdAt: bigint("created_at", { mode: "number" }).notNull(),
-  },
-  (table) => [index("passwords_user_idx").on(table.userId)],
-);
 
 export const ragEvals = pgTable(
   "rag_evals",

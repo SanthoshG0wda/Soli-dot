@@ -1,7 +1,8 @@
 "use server";
 
 import { getSessionUser, requireUser } from "@/lib/auth";
-import type { Attachment, Dot, Look, RuleDecision, TriggerApp, TriggerType } from "@/lib/types";
+import { buildConversationTitle } from "@/lib/conversation-title";
+import type { Attachment, Dot, Look, RuleDecision } from "@/lib/types";
 import {
   BACKEND_URL,
   backendFetch,
@@ -10,6 +11,10 @@ import {
   deleteBackendDot,
   sendAgentMessage,
   abortAgent,
+  createBackendMatter,
+  fetchMatters,
+  fetchConversations,
+  fetchConversation,
 } from "@/lib/backend-client";
 
 async function caller() {
@@ -65,6 +70,44 @@ export async function deleteDot(dotId: string) {
 }
 
 // ---------- Chat & Agent Execution ----------
+export async function listMatters() {
+  const user = await caller();
+  return fetchMatters(user.id);
+}
+
+export async function createMatter(input: { title: string; client?: string; court?: string; nextDate?: string; notes?: string }) {
+  const user = await caller();
+  return createBackendMatter({ ...input, userId: user.id });
+}
+
+export async function listMatterConversations(matterId: string) {
+  const user = await caller();
+  return (await fetchConversations(user.id)).filter((conversation) => conversation.matterId === matterId);
+}
+
+export async function createMatterChat(matterId: string, dotId: string) {
+  const user = await caller();
+  return createBackendConversation(dotId, "New matter chat", user.id, undefined, matterId);
+}
+
+export async function backfillConversationTitles() {
+  const user = await caller();
+  const conversations = await fetchConversations(user.id);
+  const renamed: Array<{ id: string; title: string }> = [];
+  for (const conversation of conversations) {
+    const data = await fetchConversation(conversation.id);
+    const firstUserMessage = data?.messages.find((message) => message.role === "user" && message.text.trim());
+    if (!firstUserMessage) continue;
+    const legacyPrefix = firstUserMessage.text.trim().slice(0, 40);
+    const isLegacyTitle = conversation.title === "New matter chat" || conversation.title === "New consultation" || conversation.title === legacyPrefix;
+    if (!isLegacyTitle) continue;
+    const title = buildConversationTitle(firstUserMessage.text);
+    if (title === conversation.title) continue;
+    await renameConversation(conversation.id, title);
+    renamed.push({ id: conversation.id, title });
+  }
+  return renamed;
+}
 
 export async function sendMessage(
   dotId: string,
@@ -76,7 +119,7 @@ export async function sendMessage(
   if (!text.trim() && !attachments.length) return;
   const user = await caller();
 
-  const res = await sendAgentMessage(dotId, text.trim(), user.id, conversationId, messageId);
+  const res = await sendAgentMessage(dotId, text.trim(), user.id, conversationId, messageId, attachments);
   return {
     userMessage: res?.userMessage,
     assistantMessage: res?.assistantMessage,
@@ -89,16 +132,18 @@ export async function startConversation(
   text: string,
   attachments: Attachment[] = [],
   customConvId?: string,
-  messageId?: string
+  messageId?: string,
+  matterId?: string
 ) {
   const user = await caller();
   const conv = await createBackendConversation(
     dotId,
-    text.trim().slice(0, 40) || "New consultation",
+    buildConversationTitle(text),
     user.id,
-    customConvId
+    customConvId,
+    matterId
   );
-  const res = await sendAgentMessage(dotId, text.trim(), user.id, conv.id, messageId);
+  const res = await sendAgentMessage(dotId, text.trim(), user.id, conv.id, messageId, attachments);
   return {
     conversationId: conv.id,
     conversation: conv,
@@ -112,6 +157,14 @@ export async function renameConversation(convId: string, title: string) {
   await backendFetch(`/api/conversations/${convId}`, {
     method: "PATCH",
     body: JSON.stringify({ title: title.trim(), userId: user.id }),
+  });
+}
+
+export async function moveConversationToMatter(convId: string, matterId: string | null) {
+  const user = await caller();
+  await backendFetch(`/api/conversations/${convId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ matterId, userId: user.id }),
   });
 }
 
@@ -243,42 +296,9 @@ export async function deleteRoutine(routineId: string) {
   await backendFetch(`/api/routines/${routineId}`, { method: "DELETE" });
 }
 
-export async function savePassword(site: string, username: string, password: string): Promise<string | null> {
-  const user = await caller();
-  try {
-    await backendFetch("/api/passwords", {
-      method: "POST",
-      body: JSON.stringify({ site, username, password, userId: user.id }),
-    });
-    return null;
-  } catch (err: any) {
-    return err.message;
-  }
-}
-
-export async function deletePassword(passwordId: string) {
+export async function confirmConnectCard(messageId: string): Promise<boolean> {
   await caller();
-  await backendFetch(`/api/passwords/${passwordId}`, { method: "DELETE" });
-}
-
-// ---------- Sandboxes & Settings ----------
-
-export async function takeOverComputer(dotId: string): Promise<{ url: string | null; error?: string }> {
-  await caller();
-  return { url: `${BACKEND_URL}/api/dots/${dotId}/screen` };
-}
-
-export async function wakeComputer(dotId: string) {
-  await caller();
-}
-
-export async function handBackComputer(dotId: string) {
-  await caller();
-}
-
-export async function resetComputer(dotId: string) {
-  await caller();
-  await abortAgent(dotId);
+  return true;
 }
 
 export async function setDotModel(dotId: string, model: string | null) {
@@ -314,46 +334,6 @@ export async function setAntigravityKey(key: string): Promise<string | null> {
   return null;
 }
 
-export async function setComposioKey(key: string): Promise<string | null> {
-  await caller();
-  return null;
-}
-
-export async function listTriggerApps(): Promise<{ apps?: TriggerApp[]; error?: string }> {
-  await caller();
-  return { apps: [] };
-}
-
-export async function connectTriggerApp(toolkit: string): Promise<{ url?: string; error?: string }> {
-  await caller();
-  return {};
-}
-
-export async function listTriggerTypes(toolkit: string): Promise<{ types?: TriggerType[]; error?: string }> {
-  await caller();
-  return { types: [] };
-}
-
-export async function addTrigger(
-  dotId: string,
-  toolkit: string,
-  slug: string,
-  config: Record<string, unknown>,
-  instruction: string
-): Promise<string | null> {
-  await caller();
-  return null;
-}
-
-export async function toggleTrigger(triggerId: string, enabled: boolean): Promise<string | null> {
-  await caller();
-  return null;
-}
-
-export async function deleteTrigger(triggerId: string) {
-  await caller();
-}
-
 export async function setCloudKey(key: string): Promise<string | null> {
   await callerAdmin();
   return null;
@@ -361,66 +341,4 @@ export async function setCloudKey(key: string): Promise<string | null> {
 
 export async function setDefaultModel(model: string | null) {
   await callerAdmin();
-}
-
-export async function signInComposio(): Promise<{ url?: string; error?: string }> {
-  await caller();
-  return {};
-}
-
-export async function signOutComposio() {
-  await caller();
-}
-
-export async function connectApp(toolkit: string): Promise<{ url?: string; error?: string }> {
-  await caller();
-  return {};
-}
-
-export async function refreshApps() {
-  await caller();
-}
-
-export async function confirmConnectCard(messageId: string): Promise<boolean> {
-  await caller();
-  return true;
-}
-
-// ---------- Voice ----------
-
-export async function startVoiceCall(dotId: string, convId: string): Promise<{ token?: string; model?: string; error?: string }> {
-  await caller();
-  return { error: "Voice call is handled by dedicated media backend" };
-}
-
-export async function startVoiceConversation(dotId: string): Promise<string> {
-  const user = await caller();
-  const conv = await createBackendConversation(dotId, "Voice Consultation", user.id);
-  return conv.id;
-}
-
-export async function saveVoiceLine(dotId: string, convId: string, who: "you" | "dot", text: string) {
-  if (!text.trim()) return;
-  const user = await caller();
-  await sendAgentMessage(dotId, text.trim(), user.id);
-}
-
-export async function sendVoiceTask(dotId: string, convId: string, request: string) {
-  const user = await caller();
-  if (request.trim()) await sendAgentMessage(dotId, request.trim(), user.id);
-}
-
-// ---------- Channels ----------
-
-export async function createChannel(name: string, leadId: string, memberIds: string[]): Promise<string> {
-  await caller();
-  return `ch_${Date.now()}`;
-}
-
-export async function deleteChannel(channelId: string) {
-  await caller();
-}
-
-export async function sendChannelMessage(channelId: string, text: string) {
-  await caller();
 }

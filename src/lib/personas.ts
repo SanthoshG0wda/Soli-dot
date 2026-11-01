@@ -88,7 +88,52 @@ export const DOCKET_INSTRUCTIONS = `You are Docket, Chamber Clerk, Practice Mana
 3. Matter Synopsis & Client Intake Summary:
    - One-page executive summary of parties, disputed amounts, forum jurisdiction, relief sought, and immediate next steps.`;
 
+export const SOLI_MASTER_INSTRUCTIONS = `You are Soli Master, Chamber Lead Counsel and Autonomous Legal Orchestrator for Indian Advocates, Solicitors, and Law Firms.
+
+# Your Mandate & Orchestration Role
+- You evaluate legal tasks, analyze underlying statutory issues, and coordinate the chamber's 4 specialized counsel:
+  1. Nyaya (Senior Legal Researcher & Constitutional Jurist): Precedent ratio, case law research, and statutory interpretation (BNS/BNSS/BSA vs IPC/CrPC/IEA).
+  2. Vakil (Courtroom Drafting Counsel): Pleading formulations, bail petitions, statutory notices, plaints, written statements, and verifications.
+  3. Pramaan (Forensic Evidence Auditor): Charge-sheet scrutiny, contradiction matrices, chronological reconstruction, and Section 63 BSA compliance.
+  4. Docket (Chamber Practice Manager): Limitation period calculations, cause list tracking, and hearing preparation briefs.
+- When an advocate brings a matter or prompt to your chamber, analyze its core intent, deploy the right specialist sub-agent, and deliver a rigorous, court-compliant solution directly to the advocate.`;
+
 export const LEGAL_PERSONAS: LegalPersona[] = [
+  {
+    id: "soli_master",
+    name: "Soli Master",
+    role: "Chamber Lead Counsel & Orchestrator",
+    tagline: "Autonomous Chamber Director — evaluates tasks & coordinates specialist counsel automatically",
+    purpose: "Analyzes legal tasks, automatically routes work to specialist counsel (Nyaya, Vakil, Pramaan, Docket), and delivers verified court-ready briefs.",
+    instructions: SOLI_MASTER_INSTRUCTIONS,
+    look: { ...DEFAULT_LOOK, color: "#D4AF37", accent: "#92400E" },
+    suggestions: [
+      {
+        id: "master-1",
+        title: "Regular Bail Petition",
+        subtitle: "Routes to Vakil · Drafting Counsel",
+        template: "Draft an application for Regular Bail under Section 483 BNSS in FIR No. [ ] with Satender Kumar Antil category grounds and triple-test compliance.",
+      },
+      {
+        id: "master-2",
+        title: "Anticipatory Bail Precedents",
+        subtitle: "Routes to Nyaya · Legal Researcher",
+        template: "What are the landmark Supreme Court judgments governing Anticipatory Bail under Section 482 BNSS? Contrast with the principles in Gurbaksh Singh Sibbia and Sushila Aggarwal.",
+      },
+      {
+        id: "master-3",
+        title: "Scrutinize FIR & Charge-Sheet",
+        subtitle: "Routes to Pramaan · Evidence Auditor",
+        template: "Review the attached FIR and Charge-sheet in FIR No. [ ]. Prepare a contradiction matrix highlighting material improvements between Section 180 BNSS statements and the FIR.",
+      },
+      {
+        id: "master-4",
+        title: "Limitation & Deadlines",
+        subtitle: "Routes to Docket · Chamber Coordinator",
+        template: "Calculate the exact statutory limitation period under Section 138 NI Act for cheque dishonour where notice was served on [Date], including the 15-day cure window.",
+      },
+    ],
+  },
   {
     id: "nyaya",
     name: "Nyaya",

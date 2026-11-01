@@ -1,0 +1,4 @@
+import type { Metadata } from "next";
+import { InformationPage } from "@/components/marketing/InformationPage";
+export const metadata: Metadata = { title: "Terms | Soli", description: "Placeholder terms for Soli." };
+export default function TermsPage() { return <InformationPage eyebrow="Terms" title="Terms of use"><p>This is a placeholder terms page and should be replaced with terms reviewed for Soli&apos;s intended launch model and jurisdiction.</p><h2>Professional responsibility</h2><p>Soli supports legal professionals with research and legal work. It does not provide legal advice, establish a lawyer-client relationship, or replace the judgment of a qualified lawyer.</p><h2>Review before use</h2><p>Users remain responsible for reviewing any output and the related source material before relying on it or filing it.</p></InformationPage>; }

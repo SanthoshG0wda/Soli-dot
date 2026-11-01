@@ -1,4 +1,4 @@
-import type { ArtifactKind, Attachment, CardData, Conversation, DocumentArtifact, Dot, Look, Memory, Message, Routine, Rule, Skill } from "./types";
+import type { ArtifactKind, Attachment, CardData, Conversation, DocumentArtifact, Dot, Look, Matter, Memory, Message, Routine, Rule, Skill } from "./types";
 
 export const BACKEND_URL =
   process.env.BACKEND_URL ||
@@ -38,10 +38,17 @@ export async function backendFetch<T = any>(
 }
 
 // ---------------- Agent Execution ----------------
-export async function sendAgentMessage(dotId: string, text: string, userId?: string, conversationId?: string, messageId?: string) {
+export async function sendAgentMessage(
+  dotId: string,
+  text: string,
+  userId?: string,
+  conversationId?: string,
+  messageId?: string,
+  attachments?: Attachment[]
+) {
   return backendFetch("/api/agent/message", {
     method: "POST",
-    body: JSON.stringify({ dotId, text, userId, conversationId, messageId }),
+    body: JSON.stringify({ dotId, text, userId, conversationId, messageId, attachments }),
   });
 }
 
@@ -97,6 +104,21 @@ export async function fetchConversations(userId: string = "", dotId?: string): P
   return data.conversations || [];
 }
 
+export async function fetchMatters(userId: string): Promise<Matter[]> {
+  const data = await backendFetch<{ matters: Matter[] }>(`/api/matters?userId=${encodeURIComponent(userId)}`);
+  return (data.matters || []).map(normalizeMatter);
+}
+
+export async function createBackendMatter(input: { userId: string; title: string; client?: string; court?: string; nextDate?: string; notes?: string }): Promise<Matter> {
+  const data = await backendFetch<{ matter: Matter }>("/api/matters", { method: "POST", body: JSON.stringify(input) });
+  return normalizeMatter(data.matter);
+}
+
+function normalizeMatter(matter: Matter): Matter {
+  const status = matter.status as string;
+  return { ...matter, status: status === "active" ? "Active" : status === "on_hold" ? "On hold" : "Closed" };
+}
+
 export async function fetchConversation(id: string): Promise<{ conversation: Conversation; messages: Message[] } | null> {
   try {
     return await backendFetch<{ conversation: Conversation; messages: Message[] }>(`/api/conversations/${encodeURIComponent(id)}`);
@@ -105,10 +127,10 @@ export async function fetchConversation(id: string): Promise<{ conversation: Con
   }
 }
 
-export async function createBackendConversation(dotId: string, title?: string, userId?: string, id?: string): Promise<Conversation> {
+export async function createBackendConversation(dotId: string, title?: string, userId?: string, id?: string, matterId?: string): Promise<Conversation> {
   const data = await backendFetch<{ conversation: Conversation }>("/api/conversations", {
     method: "POST",
-    body: JSON.stringify({ dotId, title, userId, id }),
+    body: JSON.stringify({ dotId, title, userId, id, matterId }),
   });
   return data.conversation;
 }

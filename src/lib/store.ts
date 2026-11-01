@@ -104,6 +104,10 @@ export function renameConversationLocally(id: string, title: string) {
   });
 }
 
+export function updateConversationMatterLocally(id: string, matterId: string | null) {
+  set({ conversations: state.conversations.map((c) => (c.id === id ? { ...c, matterId } : c)) });
+}
+
 export function moveConversationLocally(id: string, dotId: string) {
   set({
     conversations: state.conversations.map((c) => (c.id === id ? { ...c, dotId } : c)),

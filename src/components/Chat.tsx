@@ -5,28 +5,29 @@ import { useRouter } from "next/navigation";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
-  AppWindow, ArrowUp, AudioLines, Plus, Brain, Download,
+  AppWindow, ArrowUp, Plus, Brain, Download,
   ExternalLink, FileText, Paperclip, Plug, Check, Clock, Globe, KeyRound,
   Laptop, MessageSquare, MonitorSmartphone, Search, ShieldAlert, Sparkles,
-  Terminal, X, Scale, Copy, ThumbsUp, ThumbsDown, RotateCcw,
+  Terminal, X, Scale, Copy, ThumbsUp, ThumbsDown, RotateCcw, Square,
 } from "lucide-react";
-import { confirmConnectCard, resolveCard, resumeDot, sendMessage, startConversation, startVoiceConversation } from "@/app/actions";
+import { confirmConnectCard, renameConversation, resolveCard, resumeDot, sendMessage, startConversation, stopDot } from "@/app/actions";
 import {
   addArtifactLocally,
   addConversationLocally,
   addMessageLocally,
   mergeMessages,
   removeMessageLocally,
+  renameConversationLocally,
   setActiveArtifact,
   useStore,
 } from "@/lib/store";
-import { startCall } from "@/lib/voiceCall";
-import DotOrb from "./DotOrb";
 import { ArtifactBoard, ArtifactCard } from "./artifacts";
 import { detectLegalDocument } from "@/lib/artifacts/detector";
-import { getPersonaByName, getSuggestionsForDot } from "@/lib/personas";
+import { getSuggestionsForDot } from "@/lib/personas";
 import { parseToolCalls, toolIcon } from "@/lib/tool-calls";
-import type { Attachment, Dot, Message } from "@/lib/types";
+import { stripThinkingBlocks } from "@/lib/strip-thinking";
+import { buildConversationTitle } from "@/lib/conversation-title";
+import type { Attachment, DocumentArtifact, Dot, Message } from "@/lib/types";
 
 // ── History loader ───────────────────────────────────────────────────────────
 const historyLoads = new Map<string, Promise<true>>();
@@ -50,7 +51,7 @@ function HistoryLoader({ convId }: { convId: string }) {
 const COL = "mx-auto w-full max-w-[768px]";
 
 /** `conversation`: a conversation id, "new" for a fresh chat, or undefined for the dot's latest chat. */
-export default function Chat({ dot, conversation }: { dot: Dot; conversation?: string }) {
+export default function Chat({ dot, conversation, matterId }: { dot: Dot; conversation?: string; matterId?: string }) {
   const router = useRouter();
   const all = useStore((s) => s.messages);
   const conversations = useStore((s) => s.conversations);
@@ -105,14 +106,10 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
     return deduped;
   }, [all, convId, dot.id]);
   const activeArtifactId = useStore((s) => s.activeArtifactId);
-  const artifacts = useStore((s) => s.artifacts);
-  const convArtifacts = useMemo(
-    () => (convId ? artifacts.filter((a) => a.conversationId === convId) : artifacts),
-    [artifacts, convId],
-  );
   const hasKey = useStore((s) => s.computer.hasKey || s.computer.openRouter !== null || s.computer.nvidia !== null || s.computer.groq !== null || s.computer.antigravity !== null);
   const [, start] = useTransition();
   const [submitting, setSubmitting] = useState(false);
+  const stopRequested = useRef(false);
   const [sendError, setSendError] = useState<string | null>(null);
   // Suggestion cards fill the composer (ChatGPT-style) instead of sending.
   const [draft, setDraft] = useState<{ text: string; nonce: number } | null>(null);
@@ -129,17 +126,21 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
 
   const send = (text: string, attachments: Attachment[] = []) => {
     if (submitting) return;
+    stopRequested.current = false;
     setSendError(null);
     setSubmitting(true);
 
     const isFresh = !convId;
     const targetConvId = convId ?? `conv_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+    const autoTitle = buildConversationTitle(text);
+    const existingConversation = conversations.find((conversation) => conversation.id === targetConvId);
+    const shouldAutoName = isFresh || !existingConversation?.title || /^(new matter chat|new consultation)$/i.test(existingConversation.title);
     if (isFresh) {
       setActiveConvId(targetConvId);
       addConversationLocally({
         id: targetConvId,
         dotId: dot.id,
-        title: text.slice(0, 40) || "New consultation",
+        title: autoTitle,
         userId: "",
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -169,7 +170,7 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
           result = await sendMessage(dot.id, text, attachments, targetConvId, userMsgId);
         } else {
           const canonicalId = dot.id.startsWith("dot_") ? dot.id.replace(/^dot_/, "vakil_") : dot.id;
-          const startRes = await startConversation(dot.id, text, attachments, targetConvId, userMsgId);
+          const startRes = await startConversation(dot.id, text, attachments, targetConvId, userMsgId, matterId);
           result = startRes;
           router.replace(`/vakil/${canonicalId}?c=${targetConvId}`);
         }
@@ -177,9 +178,15 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
         if (result?.assistantMessage) {
           addMessageLocally({ ...result.assistantMessage, conversationId: targetConvId });
         }
+        if (shouldAutoName) {
+          renameConversationLocally(targetConvId, autoTitle);
+          void renameConversation(targetConvId, autoTitle).catch(() => undefined);
+        }
       } catch (err) {
         console.error("Failed to send message:", err);
+        if (stopRequested.current) return;
         removeMessageLocally(userMsgId);
+        fillComposer(text);
         const raw = err instanceof Error ? err.message : "";
         const isNetworkErr = /connection|fetch|failed to fetch|econnrefused|network|abort/i.test(raw);
         setSendError(
@@ -192,12 +199,10 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
       }
     });
   };
-
-  const voice = async () => {
-    const canonicalId = dot.id.startsWith("dot_") ? dot.id.replace(/^dot_/, "vakil_") : dot.id;
-    const id = convId ?? (await startVoiceConversation(dot.id));
-    if (!convId) router.replace(`/vakil/${canonicalId}?c=${id}`);
-    void startCall(dot.id, id);
+  const stop = () => {
+    if (!submitting) return;
+    stopRequested.current = true;
+    void stopDot(dot.id).catch(() => undefined).finally(() => setSubmitting(false));
   };
   // ── Resizable split pane between Chat area and Document Preview area ───────
   const [boardWidth, setBoardWidth] = useState<number>(() => {
@@ -307,35 +312,25 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
           </Suspense>
         )}
 
-        {/* Top Session Artifacts Indicator */}
-        {convArtifacts.length > 0 && (
-          <div className="flex shrink-0 items-center gap-2 border-b border-black/[0.06] bg-card/60 px-4 py-2 backdrop-blur-xs">
-            <span className="flex size-5 items-center justify-center rounded-md bg-brand/10 text-brand-readable">
-              <Scale className="size-3" />
-            </span>
-            <span className="text-[12px] font-medium text-foreground/75">
-              {convArtifacts.length} Legal Document{convArtifacts.length > 1 ? "s" : ""} in this session
-            </span>
-          </div>
-        )}
-
         {/* Scrollable message column — threads pin to newest via column-reverse.
             Fresh chats have nothing to pin, and reversing there anchors the
             scroll to the wrong end (clipping the welcome heading), so they
             lay out normally and scroll from the top. */}
         <div
-          className={`flex min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden ${
+          className={`soli-chat-scrollbar flex min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden ${
             fresh ? "" : "flex-col-reverse"
           }`}
         >
-          <div className={`flex min-h-full min-w-0 shrink-0 flex-col px-4 sm:px-6 ${fresh ? "justify-center" : ""}`}>
+          <div className={`flex min-h-full min-w-0 shrink-0 flex-col px-4 sm:px-6 ${fresh ? "" : "justify-center"}`}>
             {!fresh && <div className="flex-1" />}
-            {fresh && <div className="min-h-6 flex-1" />}
 
             {/* Welcome screen on fresh chat */}
             {fresh && (
-              <div className={COL}>
+              <div className={`${COL} flex flex-col items-center justify-center gap-6`}>
                 <Welcome dot={dot} onSuggest={fillComposer} />
+                <div className="w-full">
+                  <Composer key="new-centered" dot={dot} onSend={send} onStop={stop} submitting={submitting} draft={draft} />
+                </div>
               </div>
             )}
 
@@ -358,21 +353,13 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
                 </div>
               ))}
 
-              {/* Thinking indicator — matches dot avatar alignment */}
-              {workingHere && (
-                <div className="motion-line flex items-center gap-3 rounded-full border border-brand/10 bg-card/70 px-3 py-2 pt-2 shadow-sm backdrop-blur">
-                  <div className="shrink-0">
-                    <DotOrb look={dot.look} status="working" size={28} />
-                  </div>
-                  <span className="shimmer-text text-[15px]">{dot.activity ?? `${dot.name} is thinking`}…</span>
-                </div>
-              )}
+              {workingHere && <ThinkingStatus />}
             </div>
           </div>
         </div>
 
         {/* Composer — same max-width column, pinned to bottom */}
-        <div className="w-full min-w-0 px-4 pb-4 sm:px-6 sm:pb-6">
+        {!fresh && <div className="w-full min-w-0 px-4 pb-4 sm:px-6 sm:pb-6">
           {sendError && (
             <div className={`${COL} mb-2`}>
               <div className="flex items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/[0.08] px-3.5 py-2 text-[13px] text-destructive">
@@ -390,9 +377,9 @@ export default function Chat({ dot, conversation }: { dot: Dot; conversation?: s
             </div>
           )}
           <div className={COL}>
-            <Composer key={convId ?? "new"} dot={dot} onSend={send} onVoice={voice} submitting={submitting} draft={draft} />
+            <Composer key={convId ?? "new"} dot={dot} onSend={send} onStop={stop} submitting={submitting} draft={draft} />
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* Artifact Board side panel with resizable split divider */}
@@ -476,42 +463,76 @@ function PaneSplitter({
 // ── Welcome screen — ChatGPT / Claude / Gemini hybrid ──────────────────────
 // Centered greeting with 2x2 suggestion cards. Clicking a card fills the
 // composer below (ChatGPT-style) — nothing is sent until the user hits Send.
-function Welcome({ dot, onSuggest }: { dot: Dot; onSuggest: (text: string) => void }) {
-  const hour = new Date().getHours();
-  const daypart = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const persona = getPersonaByName(dot.name);
-  const suggestions = getSuggestionsForDot(dot);
+const THINKING_STEPS = [
+  "Reviewing authorities",
+  "Searching relevant case law",
+  "Checking statutory provisions",
+  "Verifying citations",
+  "Analyzing the case materials",
+  "Preparing a legal response",
+];
+
+function ThinkingStatus() {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setStep((current) => {
+        const next = Math.floor(Math.random() * THINKING_STEPS.length);
+        return next === current ? (next + 1) % THINKING_STEPS.length : next;
+      });
+    }, 1400);
+    return () => window.clearInterval(timer);
+  }, []);
 
   return (
+    <div className="motion-line flex items-center gap-2 rounded-full border border-brand/15 bg-card/70 px-3 py-2 shadow-sm backdrop-blur">
+      <span className="size-1.5 shrink-0 rounded-full bg-brand animate-pulse" />
+      <span key={step} className="text-[14px] text-foreground/70 animate-message-rise">
+        {THINKING_STEPS[step]}
+      </span>
+    </div>
+  );
+}
+
+function Welcome({ dot, onSuggest }: { dot: Dot; onSuggest: (text: string) => void }) {
+  const [greeting, setGreeting] = useState("Welcome back.");
+  const daypart = "";
+  const suggestions = getSuggestionsForDot(dot);
+  useEffect(() => {
+    const hour = new Date().getHours();
+    const options = hour < 5
+      ? ["Burning the midnight oil?", "Late-night thinking, made easier."]
+      : hour < 12
+        ? ["Good morning. What are we working on?", "A fresh day for clear arguments.", "Good morning. Let’s make progress."]
+        : hour < 17
+          ? ["Good afternoon. What’s on your desk?", "Let’s make the next legal task lighter.", "A good time to sharpen the argument."]
+          : hour < 21
+            ? ["Good evening. Let’s close the loop.", "Still working? I’m here with you.", "Let’s turn today’s questions into a clear next step."]
+            : ["A quiet moment for careful thinking.", "Good night. Let’s get one more thing right.", "Late work deserves a little backup."];
+    setGreeting([...options, "What should we tackle first?", "Bring me the matter on your mind.", "Ready when you are."][Math.floor(Math.random() * (options.length + 3))]);
+  }, []);
+  return (
     <div className="flex flex-col items-center px-2 pt-10 pb-4 text-center sm:pt-16 animate-page-rise">
-      <div className="relative">
-        <span className="absolute inset-0 rounded-full border border-brand/20 animate-[pulse-ring_1.8s_ease-out_infinite]" />
-        <DotOrb look={dot.look} status={dot.status} size={44} />
-      </div>
-      <div className="mt-4 flex items-center gap-2">
+      <div className="hidden">
         <p className="font-mono text-[11px] tracking-widest text-foreground/40 uppercase">
-          {daypart} · {dot.name}
+          {daypart} · Soli
         </p>
-        {persona?.role && (
-          <span className="rounded-xs bg-brand/10 px-2 py-0.5 font-mono text-[9px] font-semibold text-brand-readable uppercase">
-            {persona.role}
-          </span>
-        )}
       </div>
-      <h1 className="mt-2 max-w-[540px] font-serif text-[34px] leading-[1.18] font-normal tracking-[-0.02em] text-balance sm:text-[44px]">
-        What can I help with?
+      <h1 className="max-w-[540px] font-serif text-[36px] leading-[1.18] font-normal tracking-[-0.035em] text-balance text-[#f1efea] sm:text-[48px]">
+        {greeting}
       </h1>
       {dot.purpose ? (
-        <p className="mt-3 max-w-[460px] text-[15px] leading-relaxed text-foreground/55">
+        <p className="hidden">
           {dot.purpose.length > 140 ? `${dot.purpose.slice(0, 140)}…` : dot.purpose}
         </p>
       ) : (
-        <p className="mt-3 max-w-[460px] text-[15px] leading-relaxed text-foreground/55">
+        <p className="hidden">
           Research, drafting and matter work with cited sources from your library.
         </p>
       )}
 
-      <div className="motion-stagger mt-8 grid w-full grid-cols-1 gap-2.5 text-left sm:grid-cols-2">
+      <div className="hidden">
         {suggestions.map((s, idx) => {
           const isBail = s.id.includes("bail") || idx === 0;
           const isNotice = s.id.includes("notice") || idx === 1;
@@ -551,7 +572,7 @@ async function uploadFiles(dotId: string, list: File[]): Promise<{ files?: Attac
 }
 
 // ── Composer ─────────────────────────────────────────────────────────────────
-function Composer({ dot, onSend, onVoice, submitting = false, draft = null }: { dot: Dot; onSend: (text: string, attachments: Attachment[]) => void; onVoice: () => void; submitting?: boolean; draft?: { text: string; nonce: number } | null }) {
+function Composer({ dot, onSend, onStop, submitting = false, draft = null }: { dot: Dot; onSend: (text: string, attachments: Attachment[]) => void; onStop?: () => void; submitting?: boolean; draft?: { text: string; nonce: number } | null }) {
   const [text, setText] = useState("");
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -601,7 +622,7 @@ function Composer({ dot, onSend, onVoice, submitting = false, draft = null }: { 
     return (
       <div className="surface flex items-center justify-between gap-4 px-4 py-3 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.15)]">
         <span className="text-[13px] text-foreground/60">
-          {dot.name} is paused. Any ongoing work was stopped, and it won&apos;t message you until you resume it.
+          Soli is paused. Any ongoing work was stopped, and it won&apos;t message you until you resume it.
         </span>
         <button className="btn-primary h-8 shrink-0 px-3 text-[13px]" onClick={() => start(() => resumeDot(dot.id))}>
           Resume
@@ -617,7 +638,7 @@ function Composer({ dot, onSend, onVoice, submitting = false, draft = null }: { 
       onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles([...e.dataTransfer.files]); }}
     >
       <div
-        className={`composer-shell rounded-[28px] border bg-card/95 px-4 pt-3 pb-2 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.12)] backdrop-blur transition-[box-shadow,border-color] focus-within:border-black/20 focus-within:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] ${dragging ? "border-brand border-dashed" : "border-black/10"}`}
+        className={`composer-shell rounded-2xl border bg-[#292928] px-4 pt-3 pb-2 shadow-[0_2px_8px_rgba(0,0,0,0.3)] backdrop-blur transition-[box-shadow,border-color] focus-within:border-brand/60 focus-within:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)] ${dragging ? "border-brand border-dashed" : "border-white/10"}`}
       >
         {uploads.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5 px-1 pt-1">
@@ -642,13 +663,13 @@ function Composer({ dot, onSend, onVoice, submitting = false, draft = null }: { 
           ref={textareaRef}
           rows={1}
           autoFocus
-          aria-label={`Message ${dot.name}`}
+          aria-label="Message Soli"
           value={text}
           onChange={(e) => setText(e.target.value)}
           onPaste={(e) => { const pasted = [...e.clipboardData.files]; if (pasted.length) { e.preventDefault(); addFiles(pasted); } }}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } }}
-          placeholder={dragging ? "Drop files to attach" : `Message ${dot.name}…`}
-          className="max-h-52 min-h-[44px] w-full resize-none bg-transparent px-1 py-2 text-[16px] leading-[1.5] tracking-default outline-none [field-sizing:content] placeholder:text-foreground/35"
+          placeholder={dragging ? "Drop files to attach" : "Message Soli…"}
+          className="max-h-52 min-h-[44px] w-full resize-none bg-transparent px-1 py-2 text-[16px] leading-[1.5] tracking-default outline-none [field-sizing:content] placeholder:text-[#8e8e8e]"
         />
 
         <div className="flex items-center gap-1 pb-1">
@@ -659,36 +680,29 @@ function Composer({ dot, onSend, onVoice, submitting = false, draft = null }: { 
             <Plus className="size-[18px]" strokeWidth={1.75} />
             <input type="file" multiple className="hidden" onChange={(e) => { addFiles([...(e.target.files ?? [])]); e.target.value = ""; }} />
           </label>
-          <span className="ml-1 hidden items-center gap-1.5 rounded-full border border-black/[0.08] bg-popover px-2.5 py-1 text-[12px] text-foreground/55 sm:flex">
-            <Scale className="size-3 text-brand" />
-            Legal research
-          </span>
 
           <div className="ml-auto flex items-center gap-1">
-            <button
-              type="button"
-              className="motion-card flex size-9 shrink-0 items-center justify-center rounded-full text-foreground/50 transition-colors hover:bg-black/[0.05] hover:text-foreground"
-              onClick={onVoice}
-              aria-label={`Voice mode with ${dot.name}`}
-              title="Voice mode"
-            >
-              <AudioLines className="size-[18px]" strokeWidth={2} />
-            </button>
-            <button
-              type="button"
-              className="motion-card flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-card transition-all hover:opacity-85 disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-foreground/30"
-              disabled={submitting || pending || busy || (!text.trim() && !ready.length)}
-              onClick={submit}
-              aria-label="Send"
-              title="Send (Enter)"
-            >
-              <ArrowUp className="size-4" strokeWidth={2.25} />
-            </button>
+            {submitting && onStop ? (
+              <button type="button" className="motion-card flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f1efea] text-[#1f1f1e] transition-all hover:opacity-85" onClick={onStop} aria-label="Stop response" title="Stop response">
+                <Square className="size-3.5 fill-current" strokeWidth={2} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="motion-card flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-card transition-all hover:opacity-85 disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-foreground/30"
+                disabled={submitting || pending || busy || (!text.trim() && !ready.length)}
+                onClick={submit}
+                aria-label="Send"
+                title="Send (Enter)"
+              >
+                <ArrowUp className="size-4" strokeWidth={2.25} />
+              </button>
+            )}
           </div>
         </div>
       </div>
       <p className="mt-2 text-center text-[12px] text-foreground/35">
-        {dot.name} can make mistakes. Check important info.
+        Soli can make mistakes. Check important info.
       </p>
     </div>
   );
@@ -758,6 +772,17 @@ export function MessageRow({
 }) {
   const artifacts = useStore((s) => s.artifacts);
 
+  // Reasoning markup is presentation-only: keep the raw message in the store,
+  // but do not let hidden content reach any user-facing assistant UI.
+  const visibleText = m.role === "dot" ? stripThinkingBlocks(m.text) : m.text;
+
+  // Raw `TOOL <name> {json}` dumps arrive as plain text — pull them out and
+  // render as quiet chips so the answer reads as prose, not a stack trace.
+  const { prose, tools } = useMemo(
+    () => (m.role === "dot" && visibleText ? parseToolCalls(visibleText) : { prose: visibleText, tools: [] as ReturnType<typeof parseToolCalls>["tools"] }),
+    [m.role, visibleText],
+  );
+
   // ── User bubble (right-aligned, pill shape, dark background) ────────────
   if (m.role === "user") {
     return (
@@ -786,7 +811,7 @@ export function MessageRow({
     return (
       <div className="motion-line flex min-w-0 items-center gap-2 rounded-full bg-card/55 px-2.5 py-1 text-foreground/40">
         <Icon className="size-3.5 shrink-0" strokeWidth={1.5} />
-        {showName && <span className="shrink-0 text-[12px] text-foreground/55">{dot.name}</span>}
+        {showName && <span className="shrink-0 text-[12px] text-foreground/55">Soli</span>}
         <span className="shrink-0 font-mono text-[11px] tracking-wide whitespace-nowrap uppercase">{label}</span>
         {rest.length > 0 && <span className="truncate font-mono text-[11px] text-foreground/30">{rest.join(" · ")}</span>}
       </div>
@@ -815,30 +840,20 @@ export function MessageRow({
     )?.id;
 
   const detectedDoc =
-    !matchedArtifactId && m.role === "dot" && m.text ? detectLegalDocument(m.text) : null;
+    !matchedArtifactId && m.role === "dot" && visibleText ? detectLegalDocument(visibleText) : null;
 
   const artifactObj = matchedArtifactId ? artifacts.find((a) => a.id === matchedArtifactId) : null;
   const nonArtifactAttachments = m.attachments?.filter(
     (att) => !artifactObj || (att.id !== artifactObj.fileId && att.id !== artifactObj.pdfFileId && att.id !== artifactObj.docxFileId),
   ) ?? [];
 
-  // Raw `TOOL <name> {json}` dumps arrive as plain text — pull them out and
-  // render as quiet chips so the answer reads as prose, not a stack trace.
-  const { prose, tools } = useMemo(
-    () => (m.role === "dot" && m.text ? parseToolCalls(m.text) : { prose: m.text || "", tools: [] as ReturnType<typeof parseToolCalls>["tools"] }),
-    [m.role, m.text],
-  );
   const hasProse = prose.replace(/[…\s]/g, "") !== "";
 
   return (
-    <div className="flex gap-3 animate-message-rise">
-      {/* Avatar: always shown in direct chats too, matches Claude's layout */}
-      <div className="mt-0.5 shrink-0">
-        <DotOrb look={dot.look} status="idle" size={28} />
-      </div>
-      <div className="min-w-0 flex-1 pt-0.5">
+    <div className="animate-message-rise">
+      <div className="min-w-0 pt-0.5">
         {showName && (
-          <div className="mb-1 text-[13px] font-medium text-foreground/70">{dot.name}</div>
+          <div className="mb-1 text-[13px] font-medium text-foreground/70">Soli</div>
         )}
         {m.title && (
           <div className="mb-2 inline-flex items-center gap-1.5 rounded-sm bg-highlight px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-highlight-foreground uppercase">
@@ -876,9 +891,9 @@ export function MessageRow({
             )}
           </div>
         )}
-        {!hasProse && !tools.length && (
+        {!hasProse && !tools.length && !m.text && (
           <div className="dot-prose">
-            <Markdown remarkPlugins={[remarkGfm]}>{m.text || "…"}</Markdown>
+            <Markdown remarkPlugins={[remarkGfm]}>…</Markdown>
             {isStreaming && (
               <span className="ml-1 inline-block h-3.5 w-1.5 rounded-xs bg-brand animate-pulse align-middle" />
             )}
@@ -888,13 +903,13 @@ export function MessageRow({
         {matchedArtifactId ? (
           <ArtifactCard artifactId={matchedArtifactId} />
         ) : detectedDoc ? (
-          <DetectedDocCard message={m} dot={dot} detected={detectedDoc} />
+          <DetectedDocCard message={m} content={visibleText} dot={dot} detected={detectedDoc} />
         ) : null}
 
         {!!nonArtifactAttachments.length && <Attachments items={nonArtifactAttachments} />}
 
         {/* Message action icons below the document card (Claude style) */}
-        <MessageActions text={m.text} />
+        <MessageActions text={visibleText} />
       </div>
     </div>
   );
@@ -956,17 +971,37 @@ function MessageActions({ text }: { text: string }) {
 
 function DetectedDocCard({
   message,
+  content,
   dot,
   detected,
 }: {
   message: Message;
+  content: string;
   dot: Dot;
   detected: { isLegalDoc: boolean; title: string; kind: string; content?: string };
 }) {
   const [loading, setLoading] = useState(false);
 
   const handleOpen = async () => {
-    setLoading(true);
+    // 1. Immediately create and activate artifact locally so Artifact Board opens instantly
+    const artifactId = message.artifactId || `art_${message.id}`;
+    const safeTitle = detected.title || "Legal Document";
+    const localArtifact: DocumentArtifact = {
+      id: artifactId,
+      dotId: dot.id,
+      conversationId: message.conversationId || null,
+      title: safeTitle,
+      filename: `${safeTitle.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 50)}.pdf`,
+      kind: (detected.kind as any) || "contract",
+      content: detected.content || content,
+      summary: `Legal Document: ${safeTitle}`,
+      createdAt: message.createdAt || Date.now(),
+      updatedAt: Date.now(),
+    };
+    addArtifactLocally(localArtifact);
+    setActiveArtifact(artifactId);
+
+    // 2. Persist to backend and update store with server-generated PDF file ID
     try {
       const res = await fetch("/api/artifacts", {
         method: "POST",
@@ -975,24 +1010,21 @@ function DetectedDocCard({
           dotId: dot.id,
           conversationId: message.conversationId,
           messageId: message.id,
-          title: detected.title,
-          content: detected.content || message.text,
+          title: safeTitle,
+          content: detected.content || content,
           kind: detected.kind,
-          summary: `Court document: ${detected.title}`,
+          summary: `Legal Document: ${safeTitle}`,
         }),
       });
       if (res.ok) {
         const data = await res.json();
         if (data.artifact) {
           addArtifactLocally(data.artifact);
-        } else if (data.artifact?.id) {
           setActiveArtifact(data.artifact.id);
         }
       }
     } catch (err) {
-      console.error("Failed to generate preview for detected document:", err);
-    } finally {
-      setLoading(false);
+      console.error("Failed to sync artifact to backend:", err);
     }
   };
 
@@ -1000,6 +1032,7 @@ function DetectedDocCard({
     e.stopPropagation();
     setLoading(true);
     try {
+      const safeTitle = detected.title || "Legal Document";
       const res = await fetch("/api/artifacts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1007,10 +1040,10 @@ function DetectedDocCard({
           dotId: dot.id,
           conversationId: message.conversationId,
           messageId: message.id,
-          title: detected.title,
-          content: detected.content || message.text,
+          title: safeTitle,
+          content: detected.content || content,
           kind: detected.kind,
-          summary: `Court document: ${detected.title}`,
+          summary: `Legal Document: ${safeTitle}`,
         }),
       });
       if (res.ok) {
@@ -1019,10 +1052,12 @@ function DetectedDocCard({
         if (downloadId) {
           const a = document.createElement("a");
           a.href = `/api/files/${downloadId}?download=1`;
-          a.download = "";
+          a.download = data.artifact?.filename || `${safeTitle.toLowerCase().replace(/[^a-z0-9]+/g, "_")}.pdf`;
           document.body.appendChild(a);
           a.click();
           a.remove();
+        } else if (data.artifact?.id) {
+          window.location.href = `/api/artifacts/${data.artifact.id}/export?format=pdf`;
         }
       }
     } catch (err) {
